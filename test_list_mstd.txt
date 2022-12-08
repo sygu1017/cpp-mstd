@@ -1,0 +1,80 @@
+mstring default constructor is called
+mstring default constructor is called
+hi const char* constructor is called
+hi const MString& constructor is called
+hi const MString& constructor is called
+hi const MString& constructor is called
+hi destructor is called
+hello const char* constructor is called
+good const char* constructor is called
+hello const MString& constructor is called
+good const MString& constructor is called
+good destructor is called
+hello destructor is called
+hello const MString& constructor is called
+good const MString& constructor is called
+mstring const MString& constructor is called
+mstring const MString& constructor is called
+mstring mstring
+mstring mstring
+hi hi hi
+hello good
+mstring destructor is called
+mstring destructor is called
+hi hi hi
+tt const char* constructor is called
+aa const char* constructor is called
+bb const char* constructor is called
+tt const MString& constructor is called
+aa const MString& constructor is called
+bb const MString& constructor is called
+bb destructor is called
+aa destructor is called
+tt destructor is called
+tt aa bb
+vv const char* constructor is called
+vv const MString& constructor is called
+vv destructor is called
+tt aa bb vv
+ss const char* constructor is called
+ss const MString& constructor is called
+ss destructor is called
+ss tt aa bb vv
+vv destructor is called
+ss tt aa bb
+ss destructor is called
+tt aa bb
+ff const char* constructor is called
+ff tt aa bb
+ll const char* constructor is called
+ff tt aa bb ll
+22 const char* constructor is called
+22 ff tt aa bb ll
+11 const char* constructor is called
+11 move constructor is called
+22 ff 11 tt aa bb ll
+bb destructor is called
+22 ff 11 tt aa ll
+22 destructor is called
+ff destructor is called
+11 tt aa ll
+000 const char* constructor is called
+000 move constructor is called
+hello const MString& constructor is called
+good const MString& constructor is called
+hello good 000 11 tt aa ll
+mstring default constructor is called
+mstring default constructor is called
+mstring default constructor is called
+hello good 000 11 tt aa ll mstring mstring mstring
+11 destructor is called
+tt destructor is called
+aa destructor is called
+ll destructor is called
+mstring destructor is called
+mstring destructor is called
+mstring destructor is called
+hello good 000
+hello destructor is called
+good destructor is called
+000 destructor is called

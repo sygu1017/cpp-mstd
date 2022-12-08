@@ -1,0 +1,227 @@
+mstring default constructor is called
+mstring default constructor is called
+mstring default constructor is called
+abcd const char* constructor is called
+abcd const MString& constructor is called
+abcd const MString& constructor is called
+abcd const MString& constructor is called
+abcd const MString& constructor is called
+abcd destructor is called
+abc const char* constructor is called
+bcd const char* constructor is called
+cdf const char* constructor is called
+abc const MString& constructor is called
+bcd const MString& constructor is called
+cdf const MString& constructor is called
+cdf destructor is called
+bcd destructor is called
+abc destructor is called
+mstring mstring mstring
+abcd abcd abcd abcd
+abc bcd cdf
+abcd abcd abcd abcd
+a const char* constructor is called
+b const char* constructor is called
+c const char* constructor is called
+abcd destructor is called
+a copy assignment operator is called
+abcd destructor is called
+b copy assignment operator is called
+abcd destructor is called
+c copy assignment operator is called
+abcd destructor is called
+c destructor is called
+b destructor is called
+a destructor is called
+a b c
+a
+invalid vector subscript
+a destructor is called
+abc copy assignment operator is called
+b destructor is called
+bcd copy assignment operator is called
+c destructor is called
+cdf copy assignment operator is called
+abc bcd cdf
+a const char* constructor is called
+abc destructor is called
+a copy assignment operator is called
+bcd destructor is called
+a copy assignment operator is called
+cdf destructor is called
+a copy assignment operator is called
+a destructor is called
+a a a
+b const char* constructor is called
+b const char* constructor is called
+b const char* constructor is called
+a destructor is called
+b copy assignment operator is called
+a destructor is called
+b copy assignment operator is called
+a destructor is called
+b copy assignment operator is called
+b destructor is called
+b destructor is called
+b destructor is called
+b b b
+c const char* constructor is called
+b b b c
+b destructor is called
+b move assignment operator is called
+b move assignment operator is called
+c move assignment operator is called
+b b c
+b destructor is called
+b move assignment operator is called
+c move assignment operator is called
+b c
+abc const MString& constructor is called
+fkslsd const char* constructor is called
+fkslsd move constructor is called
+b c abc fkslsd
+fkslsd destructor is called
+b c abc
+3
+fkslsd const char* constructor is called
+fkslsd move constructor is called
+abc move constructor is called
+c move assignment operator is called
+b move assignment operator is called
+fkslsd move assignment operator is called
+4
+fkslsd b c abc
+123 const char* constructor is called
+fkslsd move constructor is called
+b move constructor is called
+c move constructor is called
+abc move constructor is called
+fkslsd 123 b c abc
+ttt const char* constructor is called
+ttt move constructor is called
+abc move constructor is called
+c move assignment operator is called
+b move assignment operator is called
+123 move assignment operator is called
+fkslsd move assignment operator is called
+ttt move assignment operator is called
+ttt fkslsd 123 b c abc
+yyy const char* constructor is called
+yyy move constructor is called
+ttt move constructor is called
+fkslsd move constructor is called
+123 move constructor is called
+b move constructor is called
+c move constructor is called
+abc move constructor is called
+ggg const char* constructor is called
+ggg move constructor is called
+abc move constructor is called
+c move assignment operator is called
+b move assignment operator is called
+123 move assignment operator is called
+fkslsd move assignment operator is called
+ttt move assignment operator is called
+yyy move assignment operator is called
+ggg move assignment operator is called
+ggg yyy ttt fkslsd 123 b c abc
+uu const char* constructor is called
+ii const char* constructor is called
+oo const char* constructor is called
+uu const MString& constructor is called
+ii const MString& constructor is called
+oo const MString& constructor is called
+ggg move constructor is called
+yyy move constructor is called
+ttt move constructor is called
+fkslsd move constructor is called
+123 move constructor is called
+b move constructor is called
+c move constructor is called
+abc move constructor is called
+oo destructor is called
+ii destructor is called
+uu destructor is called
+uu ii oo ggg yyy ttt fkslsd 123 b c abc
+11 const char* constructor is called
+11 const MString& constructor is called
+c move constructor is called
+abc move constructor is called
+b move assignment operator is called
+123 move assignment operator is called
+fkslsd move assignment operator is called
+ttt move assignment operator is called
+yyy move assignment operator is called
+ggg move assignment operator is called
+oo move assignment operator is called
+ii move assignment operator is called
+uu move assignment operator is called
+11 copy assignment operator is called
+11 copy assignment operator is called
+11 destructor is called
+11 destructor is called
+11 11 uu ii oo ggg yyy ttt fkslsd 123 b c abc
+mstring default constructor is called
+mstring default constructor is called
+mstring default constructor is called
+mstring default constructor is called
+mstring default constructor is called
+mstring default constructor is called
+mstring default constructor is called
+11 move constructor is called
+11 move constructor is called
+uu move constructor is called
+ii move constructor is called
+oo move constructor is called
+ggg move constructor is called
+yyy move constructor is called
+ttt move constructor is called
+fkslsd move constructor is called
+123 move constructor is called
+b move constructor is called
+c move constructor is called
+abc move constructor is called
+11 11 uu ii oo ggg yyy ttt fkslsd 123 b c abc mstring mstring mstring mstring mstring mstring mstring
+ii destructor is called
+oo destructor is called
+ggg destructor is called
+yyy destructor is called
+ttt destructor is called
+fkslsd destructor is called
+123 destructor is called
+b destructor is called
+c destructor is called
+abc destructor is called
+mstring destructor is called
+mstring destructor is called
+mstring destructor is called
+mstring destructor is called
+mstring destructor is called
+mstring destructor is called
+mstring destructor is called
+11 11 uu
+11 destructor is called
+11 destructor is called
+uu destructor is called
+
+111 const char* constructor is called
+111 move constructor is called
+abc const MString& constructor is called
+bcd const MString& constructor is called
+cdf const MString& constructor is called
+abc bcd cdf 111
+111
+abc bcd cdf
+1
+0
+abc destructor is called
+bcd destructor is called
+cdf destructor is called
+111 destructor is called
+mstring destructor is called
+mstring destructor is called
+mstring destructor is called
+abc destructor is called
+bcd destructor is called
+cdf destructor is called
+0 1 2 3 4 5 6 7 8 9
