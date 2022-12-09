@@ -1133,7 +1133,7 @@ namespace mstd {
 	}
 
 	template<class Callable, class Tp, class... Types>
-	inline auto invoke(Callable&& ptr, Tp&& obj, Types... args)
+	inline auto invoke(Callable&& ptr, Tp&& obj, Types&&... args)
 		noexcept(noexcept(_Invoker<Callable, Tp>::Call(static_cast<Callable&&>(ptr), static_cast<Tp&&>(obj), static_cast<Types>(args)...)))
 		-> decltype(_Invoker<Callable, Tp>::Call(static_cast<Callable&&>(ptr), static_cast<Tp&&>(obj), static_cast<Types>(args)...)) {
 		if constexpr (_Invoker<Callable, Tp>::strategy == _Invoker_strategy::_Pmf_object) {
@@ -1159,24 +1159,136 @@ namespace mstd {
 		}
 	}
 
-	template <class Tp>
-	Tp _Fake_copy_init(Tp) noexcept;
+	template<class Tp>
+	Tp _Fake_copy_init(Tp) noexcept; // not defined，利用参数传递时的拷贝行为
 
 	// _Fake_copy_init<T>(E):
 	// (1) has type T [decay_t<decltype((E))> if T is deduced],
 	// (2) is well-formed if and only if E is implicitly convertible to T and T is destructible, and
 	// (3) is non-throwing if and only if both conversion from decltype((E)) to T and destruction of T are non-throwing.
 
-	template <class Tp>
-	Tp _Returns_exactly() noexcept; // not defined
+	template<class Tp>
+	Tp _Returns_exactly() noexcept; // not defined，返回Tp类型的值，不同于declval()对于非引用类型返回Tp&&
 
+	template<class From, class To, bool = is_convertible_v<From, To>, bool = is_void_v<To>>
+	constexpr bool _is_nothrow_convertible_v = noexcept(_Fake_copy_init<To>(declval<From>()));
 
+	template<class From, class To, bool IsVoid>
+	constexpr bool _is_nothrow_convertible_v<From, To, false, IsVoid> = false;
 
+	template<class From, class To>
+	constexpr bool _is_nothrow_convertible_v<From, To, true, true> = true;
 
+	template<class From, class To>
+	struct _is_nothrow_convertible : bool_constant<_is_nothrow_convertible_v<From, To>> {};
 
+	template<class Tp, class = void>
+	struct _Weak_result_type {};
 
+	template<class Tp>
+	struct _Weak_result_type<Tp, void_t<typename Tp::result_type>> {
+		using result_type_name = typename Tp::result_type;
+	};
 
+	template<class Tp, class = void>
+	struct _Weak_argument_type : _Weak_result_type<Tp> {};
 
+	template<class Tp>
+	struct _Weak_argument_type<Tp, void_t<typename Tp::argument_type>> {
+		using argument_type_name = typename Tp::argument_type;
+	};
+
+	template<class Tp, class = void>
+	struct _Weak_binary_rags : _Weak_argument_type<Tp> {};
+
+	template<class Tp>
+	struct _Weak_binary_rags<Tp, void_t<typename Tp::first_argument_type,
+		typename Tp::second_argument_type>> : _Weak_argument_type<Tp> {
+		using first_argument_type = typename Tp::first_argument_type;
+		using second_argument_type = typename Tp::second_argument_type;
+	};
+
+	template<class Tp>
+	using _Weak_type = conditional_t < is_function_v<remove_pointer_t<Tp>>, std::_Function_args<remove_pointer_t<Tp>>, conditional_t<is_member_function_pointer_v<Tp>,
+		std::_Is_memfunptr<remove_cv_t<Tp>>, _Weak_binary_rags<Tp>>>;
+
+	template<class Tp>
+	struct _Identity {
+		using type = Tp;
+	};
+
+	template<class Tp>
+	using _Identity_t = typename _Identity<Tp>::type;
+
+	// not define, 利用函数传参用于判断是否可以转换为Tp&（reference_wrapper定义了到Tp&的隐式转换）
+	template<class Tp>
+	void _Refwrap_ctor_fun(_Identity_t<Tp&>) noexcept;
+
+	template<class Tp>
+	void _Refwrap_ctor_fun(_Identity_t<Tp&&>) = delete;
+
+	template<class Tp, class Utp, class = void>
+	struct _Refwrap_has_ctor_from : false_type {};
+
+	template<class Tp, class Utp>
+	struct _Refwrap_has_ctor_from<Tp, Utp, void_t<decltype(_Refwrap_ctor_fun<Tp>(declval<Utp>()))>> : true_type {};
+
+	template<class Tp>
+	class reference_wrapper : _Weak_type<Tp> {
+	public:
+		static_assert(is_object_v<Tp> || is_function_v<Tp>, "reference_wrapper<Tp>: Tp needs an object type or a function type");
+
+		using type = Tp;
+
+		template<class Utp, enable_if_t<conjunction_v<negation<is_same<_Remove_cvref_t<Tp>, reference_wrapper>>,
+			_Refwrap_has_ctor_from<Tp, Utp>>, int> = 0 >
+		reference_wrapper(Utp&& val) noexcept(noexcept(_Refwrap_ctor_fun<Tp>(declval<Utp>()))) {
+			Tp& _ref = static_cast<Utp&&>(val);  // 若为右值则会为其分配内存
+			ptr_ = std::addressof(_ref);
+		}
+
+		operator Tp& () const noexcept {
+			return *ptr_;
+		}
+
+		Tp& get() const noexcept {
+			return *ptr_;
+		}
+
+		// Tp为可调用类型
+		template<class... Types>
+		auto operator()(Types&&...args) const
+			noexcept(noexcept(mstd::invoke(*ptr_, static_cast<Types&&>(args)...)))
+			->decltype(mstd::invoke(*ptr_, static_cast<Types&&>(args)...)) {
+			return mstd::invoke(*ptr_, static_cast<Types&&>(args)...);
+		}
+
+	private:
+		Tp* ptr_{};
+	};
+
+	template<class Tp>
+	inline reference_wrapper<Tp> ref(Tp& val) noexcept {
+		return reference_wrapper<Tp>(val);
+	}
+
+	template<class Tp>
+	void ref(const Tp&&) = delete; // 常量右值不可被包装器包装
+
+	template<class Tp>
+	inline reference_wrapper<Tp> ref(reference_wrapper<Tp>& val) noexcept {
+		return val;
+	}
+
+	template<class Tp>
+	inline reference_wrapper<const Tp> cref(const Tp& val) noexcept {
+		return reference_wrapper<const Tp>(val);
+	}
+
+	template<class Tp>
+	inline reference_wrapper<const Tp> cref(reference_wrapper<Tp>& val) noexcept {
+		return val;
+	}
 
 }
 

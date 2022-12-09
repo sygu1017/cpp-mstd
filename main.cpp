@@ -469,9 +469,9 @@ int main() {
 
 	//cout << std::is_trivial<Test>::value << endl;
 
-	cout << std::is_nothrow_default_constructible<Test>::value << endl;
+	//cout << std::is_nothrow_default_constructible<Test>::value << endl;
 
-
+	cout << std::is_same_v<int&, std::add_rvalue_reference_t<int&>> << endl;
 
 
 }
