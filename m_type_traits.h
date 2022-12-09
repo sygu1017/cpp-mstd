@@ -118,7 +118,7 @@
 // remove_all_extents <T> : 获得多维 array 的元素类型（若T不是多维array则获得类型T）；
 //
 // underlying_type <T> : 枚举类型的低层类型；
-// decay <T> : 将 T 转化为 “实值类型”（"by-value" type）；
+// decay <T> : 将 T 转化为 “实值类型”（"by-value" type），去掉ref cv修饰符，或将函数或内置数组转换为指针类型；
 // enable_if <B,T=void> : 只有当 bool B 为 true 时会产出 type T；
 // conditional <B,T,F> : 当 bool B 为 true 会产出 type T，否则产出 type F；
 // 
@@ -154,12 +154,12 @@
 
 namespace mstd {
 
-	template<class _IntglConst, _IntglConst Val>
+	template<class IntglConst, IntglConst Val>
 	struct integral_constant {
 
-		static constexpr _IntglConst value = Val;
+		static constexpr IntglConst value = Val;
 
-		using value_type = _IntglConst;
+		using value_type = IntglConst;
 		using type = integral_constant;
 
 		constexpr operator value_type() const noexcept { return Val; }
@@ -1017,7 +1017,7 @@ namespace mstd {
 
 	// 实现 reference_wrapper<>;
 	template<class Tp>
-	struct reference_wrapper;
+	class reference_wrapper;
 
 	enum class _Invoker_strategy {
 		_Functor,		// 有参仿函数或有参函数指针的调用；
@@ -1168,7 +1168,7 @@ namespace mstd {
 	// (3) is non-throwing if and only if both conversion from decltype((E)) to T and destruction of T are non-throwing.
 
 	template<class Tp>
-	Tp _Returns_exactly() noexcept; // not defined，返回Tp类型的值，不同于declval()对于非引用类型返回Tp&&
+	Tp _Returns_exactly() noexcept; // not defined，返回Tp类型的值，不同于declval()的对于非引用类型返回Tp&&
 
 	template<class From, class To, bool = is_convertible_v<From, To>, bool = is_void_v<To>>
 	constexpr bool _is_nothrow_convertible_v = noexcept(_Fake_copy_init<To>(declval<From>()));
@@ -1235,9 +1235,14 @@ namespace mstd {
 
 	template<class Tp>
 	class reference_wrapper : _Weak_type<Tp> {
-	public:
-		static_assert(is_object_v<Tp> || is_function_v<Tp>, "reference_wrapper<Tp>: Tp needs an object type or a function type");
 
+		static_assert(is_object_v<Tp> || is_function_v<Tp>,
+			"reference_wrapper<Tp>: Tp needs an object type or a function type");
+
+	private:
+		Tp* ptr_{};
+
+	public:
 		using type = Tp;
 
 		template<class Utp, enable_if_t<conjunction_v<negation<is_same<_Remove_cvref_t<Tp>, reference_wrapper>>,
@@ -1262,9 +1267,6 @@ namespace mstd {
 			->decltype(mstd::invoke(*ptr_, static_cast<Types&&>(args)...)) {
 			return mstd::invoke(*ptr_, static_cast<Types&&>(args)...);
 		}
-
-	private:
-		Tp* ptr_{};
 	};
 
 	template<class Tp>
@@ -2457,27 +2459,29 @@ namespace gnu_type_traits {
 	using add_pointer_t = typename add_pointer<_T>::type;
 
 
+	// Note：
+	// true_type/false_type 的实现
+	// 类型的表示、函数类型、成员指针
+	// 模板重定义、递归和偏特化
+	// make_signed/make_unsigned 的实现技巧
+	// declval函数的实现、decltype()
+	// __test(int)/__test(...) 模板函数的匹配
+	// common_type / result_of 的实现
+	// is_nothrow_destructible 的实现
+	// <functional> reference wrapper for make_pair
+
+	//struct B
+	//{
+	//	int func(int) { return 0; }
+	//	int a{ };
+	//};
+	// std::cout << m_type_traits::is_same<int, m_type_traits::result_of<decltype(&B::func)(B, int)>::type>::value << std::endl;  //1
+	// std::cout << m_type_traits::is_same<int, m_type_traits::result_of<decltype(&B::a)(B)>::type>::value << std::endl;  //0
+	// std::cout << std::is_same<int, std::result_of<decltype(&B::a)(B)>::type>::value << std::endl;  //0
+
+
 } //! m_type_traits
 
 
 #endif //! _M_TYPE_TRAITS_H_
 
-// Note：
-// true_type/false_type 的实现
-// 类型的表示、函数类型、成员指针
-// 模板重定义、递归和偏特化
-// make_signed/make_unsigned 的实现技巧
-// declval函数的实现、decltype()
-// __test(int)/__test(...) 模板函数的匹配
-// common_type / result_of 的实现
-// is_nothrow_destructible 的实现
-// <functional> reference wrapper for make_pair
-
-//struct B
-//{
-//	int func(int) { return 0; }
-//	int a{ };
-//};
-// std::cout << m_type_traits::is_same<int, m_type_traits::result_of<decltype(&B::func)(B, int)>::type>::value << std::endl;  //1
-// std::cout << m_type_traits::is_same<int, m_type_traits::result_of<decltype(&B::a)(B)>::type>::value << std::endl;  //0
-// std::cout << std::is_same<int, std::result_of<decltype(&B::a)(B)>::type>::value << std::endl;  //0

@@ -16,17 +16,19 @@ namespace mstd {
 
 	template<typename VecType>
 	struct _vector_const_iterator {
+
 		using iterator_category = std::random_access_iterator_tag;
 		using value_type = typename VecType::value_type;
-		using pointer = typename VecType::const_pointer;
-		using reference = typename VecType::const_reference;
 		using size_type = typename VecType::size_type;
 		using difference_type = typename VecType::difference_type;
+
+		using pointer = typename VecType::const_pointer;
+		using reference = typename VecType::const_reference;
 		using val_ptr_t = typename VecType::pointer;
 
 		val_ptr_t ptr_{};
 
-		_vector_const_iterator() = default;
+		_vector_const_iterator() noexcept = default;
 		_vector_const_iterator(val_ptr_t ptr) noexcept : ptr_(ptr) {}
 		_vector_const_iterator& operator=(val_ptr_t ptr) noexcept {
 			this->ptr_ = ptr;
@@ -311,11 +313,11 @@ namespace mstd {
 		}
 
 	public:
-		vector() = default;
+		vector() noexcept = default;
 		explicit vector(size_type size) { fill_init(size, value_type()); }
 		vector(size_type size, const value_type& value) { fill_init(size, value); }
 		// 使用 mstd::is_iterator_v 让构造函数专用化
-		template <typename IptIter, std::enable_if_t<mstd::is_iterator_v<IptIter>, int> = 0>
+		template <typename IptIter, std::enable_if_t<mstd::_Is_iterator_v<IptIter>, int> = 0>
 		vector(IptIter first, IptIter last) { range_init(first, last); }
 		// 使用 std::initializer_list
 		vector(std::initializer_list<value_type> ilist) { range_init(ilist.begin(), ilist.end()); }
@@ -381,7 +383,7 @@ namespace mstd {
 		size_type capacity() const noexcept { return size_type(end_of_storage_ - start_); }
 		bool empty() const noexcept { return start_ == finish_; }
 
-		template<typename IptIter, std::enable_if_t<mstd::is_iterator_v<IptIter>, int> = 0>
+		template<typename IptIter, std::enable_if_t<mstd::_Is_iterator_v<IptIter>, int> = 0>
 		void assign(IptIter first, IptIter last) {  // std::vector 调用 copy assignment operator
 			vector temp{ first, last };
 			this->swap(temp);
@@ -488,7 +490,7 @@ namespace mstd {
 			return new_iter;
 		}
 
-		template<typename IptIter, std::enable_if_t<mstd::is_iterator_v<IptIter>, int> = 0>
+		template<typename IptIter, std::enable_if_t<mstd::_Is_iterator_v<IptIter>, int> = 0>
 		iterator insert(const_iterator pos, IptIter first, IptIter last) {
 			if (is_invalid_insert_iterator(pos)) {
 				throw std::out_of_range

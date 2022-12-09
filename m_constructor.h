@@ -4,6 +4,7 @@
 #include <utility>
 #include <type_traits>	// is_trivially_destructible<>; remove_reference_t<>;
 #include "m_utility.h"
+#include "m_iterator.h"
 
 namespace mstd {
 	/*
@@ -41,7 +42,7 @@ namespace mstd {
 	template<typename Iter>
 	inline void __destroy(Iter first, Iter last, std::true_type) {}
 
-	template<typename Iter, std::enable_if_t<mstd::is_iterator_v<Iter>, int> = 0>
+	template<typename Iter, std::enable_if_t<mstd::_Is_iterator_v<Iter>, int> = 0>
 	inline void destroy(Iter first, Iter last) {
 		using type = typename std::is_trivially_destructible<
 			std::remove_reference_t<decltype(*first)>>::type;

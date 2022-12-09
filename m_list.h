@@ -217,6 +217,8 @@ namespace mstd {
 	template<class Tp, class Alloc = malloc_allocator<0>>
 	class list {
 	public:
+		static_assert(!mstd::is_const_v<Tp>, "The container element is not allowed to be const type.");
+
 		using data_allocator = Alloc;
 		using value_type = Tp;
 		using pointer = value_type*;
@@ -253,7 +255,7 @@ namespace mstd {
 			}
 		}
 
-		template<class IptIter, mstd::enable_if_t<mstd::is_iterator_v<IptIter>, int> = 0>
+		template<class IptIter, mstd::enable_if_t<mstd::_Is_iterator_v<IptIter>, int> = 0>
 		void alloc_node_and_link(_Node_ptr pos, IptIter first, IptIter last) {
 			_Node_ptr ptr{};
 			for (; first != last; ++first) {
@@ -282,7 +284,7 @@ namespace mstd {
 			alloc_node_and_link(head_, num, val);
 		}
 
-		template<class IptIter, mstd::enable_if_t<mstd::is_iterator_v<IptIter>, int> = 0>
+		template<class IptIter, mstd::enable_if_t<mstd::_Is_iterator_v<IptIter>, int> = 0>
 		list(IptIter first, IptIter last) : head_(_Node::get_node()), size_(std::distance(first, last)) {
 			empty_init();
 			alloc_node_and_link(head_, first, last);
@@ -359,7 +361,7 @@ namespace mstd {
 			return head_->prev_->data_;
 		}
 
-		template<class IptIter, std::enable_if_t<mstd::is_iterator_v<IptIter>, int> = 0>
+		template<class IptIter, std::enable_if_t<mstd::_Is_iterator_v<IptIter>, int> = 0>
 		void assign(IptIter first, IptIter last) {
 			list temp(first, last);
 			this->swap(temp);
@@ -436,7 +438,7 @@ namespace mstd {
 			return iterator(ptr->next_);
 		}
 
-		template<class IptIter, std::enable_if_t<mstd::is_iterator_v<IptIter>, int> = 0>
+		template<class IptIter, std::enable_if_t<mstd::_Is_iterator_v<IptIter>, int> = 0>
 		iterator insert(const_iterator pos, IptIter first, IptIter last) {
 			_Node_ptr ptr = (--pos).raw_ptr();
 			alloc_node_and_link(ptr, first, last);
@@ -592,7 +594,6 @@ namespace mstd {
 			_Node_ptr this_ptr = head_->next_;
 			_Node_ptr other_ptr = other.head_->next_;
 			_Node_ptr temp{};
-			size_type sz{};
 			while (this_ptr != head_ && other_ptr != other.head_) {
 				if (Cmp(this_ptr->data_, other_ptr->data_)) {
 					temp = other_ptr->next_;

@@ -13,6 +13,7 @@
 
 #include <utility>
 #include <memory>
+#include <algorithm>
 #include <cassert>
 #include <iterator>
 #include <type_traits>
@@ -392,8 +393,13 @@ struct Test {
 
 };
 
+#include "m_iterator.h"
 
-
+void test_mstd_verify() {
+	int a{ 1 };
+	int b{ 2 };
+	_MSTD_VERIFY(a == b, "value not equal");
+}
 
 int main() {
 	//test_vector();
@@ -472,6 +478,15 @@ int main() {
 	//cout << std::is_nothrow_default_constructible<Test>::value << endl;
 
 	cout << std::is_same_v<int&, std::add_rvalue_reference_t<int&>> << endl;
+
+	//std::vector<int> v1{ 1,2,3,4 };
+	//std::vector<int> v2{ 5,6,7 };
+	//for_each(v1.begin(), v2.end(), [](const int elem) {cout << elem << endl; });
+
+	//test_mstd_verify();
+
+
+
 
 
 }
