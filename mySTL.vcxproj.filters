@@ -24,9 +24,6 @@
     <ClInclude Include="m_constructor.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="m_uninitialized.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="m_iterator.h">
       <Filter>头文件</Filter>
     </ClInclude>

@@ -2,8 +2,8 @@
 
 #include <exception>		// std::bad_alloc;
 
-#include "m_utility.h"		// pointer_traits;
 #include "m_type_traits.h"	// is_trivially_destructible<>;
+#include "m_utility.h"		// pointer_traits;
 #include "m_iterator.h"		// _Iter_value_t<>;
 
 
@@ -83,7 +83,7 @@ namespace mstd {
 	}
 
 	template<class Iter>
-	inline constexpr void* _Voidify_iter(Iter it) noexcept {
+	constexpr void* _Voidify_iter(Iter it) noexcept {
 		if constexpr (mstd::is_pointer_v<Iter>) {
 			return const_cast<void*>(static_cast<const volatile void*>(it));
 		}
@@ -413,6 +413,7 @@ namespace mstd {
 		static_assert(!mstd::is_const_v<Tp>, "allocator<const Tp> is ill-formed.");
 
 		using _From_primary = allocator;
+
 		using value_type = Tp;
 		using pointer = Tp*;
 		using const_pointer = const Tp*;
@@ -528,27 +529,24 @@ namespace mstd {
 
 	template<class Container>
 	struct _Tidy_guard {
-
 		Container* _Target;
 
 		void _Release() const noexcept {
 			_Target = nullptr;
 		}
-
 		~_Tidy_guard() {
-			if (_Target) _Target->_Tidy(); //Container需要定义_Tidy()函数
+			if (_Target) _Target->_Tidy();  // Container需要定义_Tidy()函数
 		}
 	};
 
 	template<class Container>
 	struct _Tidy_deallocate_guard {
-
 		Container* _Target;
 
 		void _Release() const noexcept {
 			_Target = nullptr;
 		}
-
+		// Container需要定义_Tidy_deallocate()函数
 		~_Tidy_deallocate_guard() {
 			if (_Target) _Target->_Tidy_deallocate();
 		}
@@ -559,7 +557,7 @@ namespace mstd {
 		Iter first_;
 		Iter last_;
 
-		explicit _Initialized_backout(Iter it) : first_(it), last_(it) {}
+		explicit _Initialized_backout(Iter iter) : first_(iter), last_(iter) {}
 		_Initialized_backout(Iter first, Iter last) : first_(first), last_(last) {}
 
 		_Initialized_backout(const _Initialized_backout&) = delete;
@@ -580,6 +578,176 @@ namespace mstd {
 			return last_
 		}
 	};
+
+	template<class Alloc>
+	struct _Uninitialized_backout_alloc {
+	private:
+		using pointer = _Alloc_ptr_t<Alloc>;
+
+		pointer first_;
+		pointer last_;
+		Alloc& alloc_;
+
+	public:
+
+		explicit _Uninitialized_backout_alloc(pointer iter, Alloc& alloc)
+			: first_(iter), last_(iter), alloc_(alloc) {}
+
+		_Uninitialized_backout_alloc(const _Uninitialized_backout_alloc&) = delete;
+		_Uninitialized_backout_alloc& operator=(const _Uninitialized_backout_alloc&) = delete;
+
+		~_Uninitialized_backout_alloc() {
+			_Destroy_range(first_, last_, alloc_);
+		}
+
+		template<class... Args>
+		void _Emplace_back(Args&&... args) {
+			allocator_traits<Alloc>::construct(alloc_, _Unfancy(last), mstd::forward<Args>(args)...);
+			++last_;
+		}
+
+		constexpr pointer _Release() {
+			first_ = last_;
+			return last_
+		}
+	};
+
+	template<class InIter, class OutIter>
+	inline OutIter _Uninitialized_copy_unchecked(InIter first, InIter last, OutIter dest) {
+		if constexpr (_Iter_copy_cat<InIter, OutIter>::_Bitcopy_constructible) {
+			return _Copy_with_memmove(first, last, dest);
+		}
+		_Uninitialized_backout<OutIter> backout{ dest };
+		for (; first != last; ++first) {
+			backout._Emplace_back(*first);
+		}
+		return backout._Release();
+	}
+
+	template<class InIter, class OutIter>
+	inline OutIter uninitialized_copy(InIter first, InIter last, OutIter dest) {
+
+		_Mstd_adl_verify_range(first, last);
+		auto ufirst = _Get_unwrapped_iter(first);
+		const auto ulast = _Get_unwrapped_iter(last);
+		auto udest = _Get_unwrapped_iter_n(dest, _Idl_distance(ufirst, ulast));
+
+		_Seek_wrapped_iter(dest, _Uninitialized_copy_unchecked(ufirst, ulast, udest));
+		return dest;
+	}
+
+	template<class Iter, class Tp>
+	void uninitialized_fill(Iter first, Iter last, const Tp& val) {
+
+		_Mstd_adl_verify_range(first, last);
+		auto ufirst = _Get_unwrapped_iter(first);
+		const auto ulast = _Get_unwrapped_iter(last);
+
+		if constexpr (_Fill_memset_is_safe<_Unwrapped_t<const Iter&>, Tp>) {
+			_Fill_memset(ufirst, val, static_cast<size_t>(ulast - ufirst));
+		}
+		else {
+			if constexpr (_Fill_zero_memset_is_safe<_Unwrapped_t<const Iter&>, Tp>) {
+				if (_Is_all_bits_zero(val)) {
+					_Fill_zero_memset(ufirst, static_cast<size_t>(ulast - ufirst));
+					return;
+				}
+			}
+			_Uninitialized_backout<_Unwrapped_t<const Iter&>> backout{ ufirst };
+			for (; ufirst != ulast; ++ufirst) {
+				backout._Emplace_back(val);
+			}
+			backout._Release();
+		}
+	}
+
+	template <class Iter, class Sentinel, class Alloc>
+	inline _Alloc_ptr_t<Alloc> _Uninitialized_copy(Iter first, Sentinel last, _Alloc_ptr_t<Alloc> dest, Alloc& alloc) {
+		using Ptr = typename _Alloc::value_type*;
+		auto ufirst = _Get_unwrapped_iter(mstd::move(first));
+		auto ulast = _Get_unwrapped_iter(mstd::move(last));
+
+		constexpr bool can_memmove = _Sentinel_copy_cat<decltype(ufirst), decltype(ulast), Ptr>::_Bitcopy_constructible && _Uses_default_construct<Alloc, Ptr, decltype(*ufirst)>::value;
+		if constexpr (can_memmove) {
+			if constexpr (is_same_v<decltype(ufirst), decltype(ulast)>) {
+				_Copy_with_memmove(_To_address(ufirst), _To_address(ulast), _Unfancy(dest));
+				dest += ulast - ufirst;
+			}
+			else {
+				const auto count = static_cast<size_t>(ulast - ufirst);
+				_Copy_n_with_memmove(_To_address(ufirst), count, _Unfancy(_Dest));
+				dest += count;
+			}
+			return dest;
+		}
+		_Uninitialized_backout_alloc<_Alloc> backout{ dest, alloc };
+		for (; ufirst != ulast; ++ufirst) {
+			backout._Emplace_back(*ufirst);
+		}
+		return backout._Release();
+	}
+
+	template<class Iter, class Alloc>
+	inline _Alloc_ptr_t<Alloc> _Uninitialized_copy_n(Iter first, size_t count, _Alloc_ptr_t<Alloc> dest, Alloc& alloc) {
+		using Ptr = typename Alloc::value_type*;
+		auto ufirst = _Get_unwrapped_iter(mstd::move(first));
+		constexpr bool can_memmove = conjunction_v<bool_constant<_Iter_copy_cat<decltype(ufirst), Ptr>::_Bitcopy_constructible>, _Uses_default_construct<Alloc, Ptr, decltype(*ufirst)>>;
+
+		if constexpr (can_memmove) {
+			_Copy_n_with_memmove(ufirst, count, _Unfancy(dest));
+			dest += count;
+			return dest;
+		}
+
+		_Uninitialized_backout_alloc<Alloc> backout{ dest,alloc };
+		for (; count != 0; --count, ++ufirst) {
+			backout._Emplace_back(*ufirst);
+		}
+		return backout._Release();
+	}
+
+	template<class Iter, class Alloc>
+	inline _Alloc_ptr_t<Alloc> _Uninitialized_move(Iter first, Iter last, _Alloc_ptr_t<Alloc> dest, Alloc& alloc) {
+		using Ptr = typename Alloc::value_type*;
+		auto ufirst = _Get_unwrapped_iter(first);
+		const auto ulast = _Get_unwrapped_iter(last);
+		constexpr bool can_memmove = conjunction_v < bool_constant<_Iter_move_cat<decltype(ufirst), Ptr >::_Bitcopy_constructible>, _Uses_default_construct < Alloc, Ptr, decltype(mstd::move(*ufirst));
+		if constexpr (can_memmove) {
+			_Copy_with_memmove(ufirst, ulast, _Unfancy(dest));
+			return dest + (ulast - ufirst);
+		}
+		_Uninitialized_backout_alloc<Alloc> backout{ dest,alloc };
+		for (; ufirst != ulast; ++ufirst) {
+			backout._Emplace_back(mstd::move(*ufirst));
+		}
+		return backout._Release();
+	}
+
+	template<class Alloc>
+	inline _Alloc_ptr_t<Alloc> _Uninitialized_fill_n(_Alloc_ptr_t<Alloc> first, _Alloc_size_t<Alloc> count, const typename Alloc::value_type& val, Alloc& alloc) {
+		using Tp = typename Alloc::value_type;
+		if constexpr (_Fill_memset_is_safe<Tp*, Tp> && _Uses_default_construct<Alloc, Tp*, Tp>::value) {
+			_Fill_memset(_Unfancy(first), val, static_cast<size_t>(count));
+			return first + count;
+		}
+		else if constexpr (_Fill_zero_memset_is_safe<Tp*, Tp> && _Uses_default_construct<Alloc, Tp*, Tp>::value) {
+			if (_Is_all_bits_zero(val)) {
+				_Fill_zero_memset(_Unfancy(first), static_cast<size_t>(count));
+				return first + count;
+			}
+		}
+		_Uninitialized_backout_alloc<Alloc> backout{ first,alloc };
+		for (; count > 0; --count) {
+			backout._Emplace_back(val);
+		}
+		return backout._Release();
+	}
+
+
+
+
+
+
 
 
 

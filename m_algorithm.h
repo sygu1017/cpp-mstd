@@ -4,6 +4,7 @@
 Functions in <algorithm>
 
 Non-modifying sequence operations:
+
 all_of			 Test condition on all elements in range (function template )
 any_of			 Test if any element in range fulfills condition (function template )
 none_of			 Test if no elements fulfill condition (function template )
@@ -22,7 +23,9 @@ is_permutation	 Test whether range is permutation of another (function template 
 search			 Search range for subsequence (function template )
 search_n		 Search range for elements (function template )
 
+
 Modifying sequence operations:
+
 copy			 Copy range of elements (function template )
 copy_n			 Copy elements (function template )
 copy_if			 Copy certain elements of range (function template )
@@ -54,14 +57,18 @@ rotate_copy		 Copy range rotated left (function template )
 random_shuffle	 Randomly rearrange elements in range (function template )
 shuffle			 Randomly rearrange elements in range using generator (function template )
 
+
 Partitions:
+
 is_partitioned	 Test whether range is partitioned (function template )
 partition		 Partition range in two (function template )
 stable_partition Partition range in two - stable ordering (function template )
 partition_copy	 Partition range into two (function template )
 partition_point  Get partition point (function template )
 
+
 Sorting:
+
 sort			 Sort elements in range (function template )
 stable_sort		 Sort elements preserving order of equivalents (function template )
 partial_sort	 Partially sort elements in range (function template )
@@ -70,13 +77,17 @@ is_sorted		 Check whether range is sorted (function template )
 is_sorted_until	 Find first unsorted element in range (function template )
 nth_element		 Sort element in range (function template )
 
+
 Binary search (operating on partitioned/sorted ranges):
+
 lower_bound		 Return iterator to lower bound (function template )
 upper_bound		 Return iterator to upper bound (function template )
 equal_range		 Get subrange of equal elements (function template )
 binary_search	 Test if value exists in sorted sequence (function template )
 
+
 Merge (operating on sorted ranges):
+
 merge			 Merge sorted ranges (function template )
 inplace_merge	 Merge consecutive sorted ranges (function template )
 includes		 Test whether sorted range includes another sorted range (function template )
@@ -85,7 +96,9 @@ set_intersection Intersection of two sorted ranges (function template )
 set_difference	 Difference of two sorted ranges (function template )
 set_symmetric_difference  Symmetric difference of two sorted ranges (function template )
 
+
 Heap:
+
 push_heap		 Push element into heap range (function template )
 pop_heap		 Pop element from heap range (function template )
 make_heap		 Make heap from range (function template )
@@ -93,7 +106,9 @@ sort_heap		 Sort elements of heap (function template )
 is_heap			 Test if range is heap (function template )
 is_heap_until	 Find first element not in heap order (function template )
 
+
 Min/max:
+
 min				 Return the smallest (function template )
 max				 Return the largest (function template )
 minmax			 Return smallest and largest elements (function template )
@@ -101,19 +116,22 @@ min_element		 Return smallest element in range (function template )
 max_element		 Return largest element in range (function template )
 minmax_element	 Return smallest and largest elements in range (function template )
 
+
 Other:
+
 lexicographical_compare	  Lexicographical less-than comparison (function template )
 next_permutation		  Transform range to next permutation (function template )
 prev_permutation		  Transform range to previous permutation (function template )
 */
 
-
-#include "m_utility.h"
-#include "m_type_traits.h"
 #include <cstring>			// memmove()
 #include <type_traits>		// 
 #include <cstddef>
 #include <functional>
+
+#include "m_utility.h"
+#include "m_type_traits.h"
+
 
 namespace mstd {
 
@@ -394,68 +412,7 @@ namespace mstd {
 
 	// Modifying sequence operations:
 
-	template<typename IptIter, typename OptIter>
-	inline OptIter __copy(IptIter first, IptIter last, OptIter dest,
-		std::input_iterator_tag)
-	{
-		for (; first != last; ++first, ++dest) {
-			*dest = *first;
-		}
-		return dest;
-	}
 
-	template<typename RdmIter, typename OptIter, typename Distance>
-	inline OptIter __copy_d(RdmIter first, RdmIter last, OptIter dest, Distance*)
-	{
-		for (Distance n = last - first; n > 0; --n, ++first, ++dest) {
-			*dest = *first;
-		}
-		return dest;
-	}
-
-	template<typename RdmIter, typename OptIter>
-	inline OptIter __copy(RdmIter first, RdmIter last, OptIter dest,
-		std::random_access_iterator_tag)
-	{
-		return __copy_d(first, last, dest, (ptrdiff_t*)0);
-	}
-
-	template<typename Tp>
-	inline Tp* __copy_t(const Tp* first, const Tp* last, Tp* dest, std::true_type)
-	{
-		std::memmove(dest, first, sizeof(Tp) * (last - first));
-		return dest + (last - first);
-	}
-
-	template<typename Tp>
-	inline Tp* __copy_t(const Tp* first, const Tp* last, Tp* dest, std::false_type)
-	{
-		return __copy_d(first, last, dest, (ptrdiff_t*)0);
-	}
-
-	template<typename IptIter, typename OptIter>
-	struct __copy_dispatch {
-		OptIter operator()(IptIter first, IptIter last, OptIter dest)
-		{
-			using type = typename std::iterator_traits<IptIter>::iterator_category;
-			return __copy(first, last, dest, type{});
-		}
-	};
-
-	template<typename Tp>
-	struct __copy_dispatch<Tp*, Tp*> {
-		Tp* operator()(const Tp* first, const Tp* last, Tp* dest)
-		{
-			using type = mstd::is_bitcopy_assignment_t<decltype(*first)>;
-			return __copy_t(first, last, dest, type{});
-		}
-	};
-
-	template<typename IptIter, typename OptIter>
-	inline OptIter copy(IptIter first, IptIter last, OptIter dest)
-	{
-		return __copy_dispatch<IptIter, OptIter>()(first, last, dest);
-	}
 
 	inline char* copy(const char* first, const char* last, char* dest)
 	{

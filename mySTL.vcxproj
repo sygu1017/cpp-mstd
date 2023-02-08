@@ -154,7 +154,6 @@
     <ClInclude Include="m_type_traits.h" />
     <ClInclude Include="m_utility.h" />
     <ClInclude Include="m_vector.h" />
-    <ClInclude Include="m_uninitialized.h" />
     <ClInclude Include="resource.h" />
   </ItemGroup>
   <ItemGroup>

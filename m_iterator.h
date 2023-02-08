@@ -89,7 +89,7 @@ namespace mstd {
 	// 定义 _MSTD_VERIFY()
 
 	inline void _Verify_fail(const char* mesg, const char* file, int line) {
-		std::string error_mesg = std::string("Verify Fail: ") + mesg + ", at file " + file + " in line " + std::to_string(line) + ".";
+		std::string error_mesg = std::string("Verify fail: ") + mesg + ", at file " + file + " in line " + std::to_string(line) + ".";
 		std::cout << error_mesg << std::endl;
 		std::terminate();
 	}
@@ -115,7 +115,7 @@ namespace mstd {
 	template<class Iter, class = void>
 	constexpr bool _Allow_inheriting_unwrap_v = false;
 
-	// 容器迭代器 定义 _Prevent_inheriting_unwarp
+	// 容器迭代器 定义 _Prevent_inheriting_unwarp，is_same_v<>防止继承性的可解包装
 	template<class Iter>
 	constexpr bool _Allow_inheriting_unwrap_v<Iter, void_t<typename Iter::_Prevent_inheriting_unwrap>> = mstd::is_same_v<Iter, typename Iter::_Prevent_inheriting_unwrap>;
 
@@ -211,7 +211,7 @@ namespace mstd {
 			using Commom_diff = common_type_t<Iter_diff, Diff>;
 
 			const auto Coff = static_cast<Commom_diff>(off);
-			_MSTD_VERIFY(Coff <= static_cast<Commom_diff>(_Max_possible_v<Iter_diff>) && (is_unsigned_v<Diff> || static_cast<Commom_diff>(_Min_possible_v<Iter_diff>) <= Coff), "Integer overflow");
+			_MSTD_VERIFY(Coff <= static_cast<Commom_diff>(_Max_possible_v<Iter_diff>) && (is_unsigned_v<Diff> || static_cast<Commom_diff>(_Min_possible_v<Iter_diff>) <= Coff), "integer overflow");
 
 			iter._Verify_offset(static_cast<Iter_diff>(off));
 			return static_cast<Iter&&>(iter)._Unwrapped_iter();
@@ -231,7 +231,7 @@ namespace mstd {
 	constexpr bool _Wrapped_seekable_v<Iter, UIter, void_t<decltype(mstd::declval<Iter&>()._Wrapped_iter(mstd::declval<UIter&&>()))>> = true;
 
 	template<class Iter, class UIter>
-	inline constexpr void _Seek_wrapped_iter(Iter& iter, UIter&& uiter) {
+	constexpr void _Seek_wrapped_iter(Iter& iter, UIter&& uiter) {
 		if constexpr (_Wrapped_seekable_v<Iter, UIter>) {
 			iter._Wrapped_iter(uiter);
 		}
@@ -241,14 +241,15 @@ namespace mstd {
 	}
 
 	template<class IptIter, class Diff>
-	inline void advance(IptIter& iter, const Diff off) {
+	constexpr void advance(IptIter& iter, const Diff off) {
 		if constexpr (_Is_ranges_rdm_iter_v<IptIter>) {
 			iter += off;
 		}
 		else {
 			if constexpr (is_signed_v<Diff> && !_Is_ranges_bid_iter_v<IptIter>) {
-				_MSTD_VERIFY(off >= 0, "Non-bidirectional iterator can not be decrease by advance.");
+				_MSTD_VERIFY(off >= 0, "non-bidirectional iterator can not be decrease by advance");
 			}
+
 			decltype(auto) unwrapped_iter = _Get_unwrapped_iter_n(iter, off);
 			constexpr bool need_rewrap = !is_reference_v<decltype(_Get_unwrapped_iter_n(mstd::move(iter), off))>;
 			if constexpr (is_signed_v<Diff> && _Is_ranges_bid_iter_v<IptIter>) {
@@ -256,9 +257,11 @@ namespace mstd {
 					--unwrapped_iter;
 				}
 			}
+
 			for (; off > 0; --off) {
 				++unwrapped_iter;
 			}
+
 			if constexpr (need_rewrap) {
 				_Seek_wrapped_iter(iter, mstd::move(unwrapped_iter));
 			}
@@ -266,7 +269,7 @@ namespace mstd {
 	}
 
 	template<class IptIter>
-	inline _Iter_difference_t<IptIter> distance(IptIter first, IptIter last) {
+	constexpr _Iter_difference_t<IptIter> distance(IptIter first, IptIter last) {
 		if constexpr (_Is_ranges_rdm_iter_v<IptIter>) {
 			return last - first;	// 迭代器需自己定义检查范围是否合法
 		}
@@ -284,15 +287,15 @@ namespace mstd {
 	}
 
 	template<class IptIter>
-	inline constexpr IptIter next(IptIter first, _Iter_difference_t<IptIter> off = 1) {
-		static_assert(_Is_ranges_ipt_iter_v<IptIter>, "The next() requires input iterator.");
+	constexpr IptIter next(IptIter first, _Iter_difference_t<IptIter> off = 1) {
+		static_assert(_Is_ranges_ipt_iter_v<IptIter>, "next requires input iterator");
 		mstd::advance(first, off);
 		return first;
 	}
 
 	template<class BidIter>
-	inline constexpr BidIter prev(BidIter first, _Iter_difference_t<BidIter> off = 1) {
-		static_assert(_Is_ranges_bid_iter_v<BidIter>, "The prev() requires bidirectional iterator.");
+	constexpr BidIter prev(BidIter first, _Iter_difference_t<BidIter> off = 1) {
+		static_assert(_Is_ranges_bid_iter_v<BidIter>, "prev requires bidirectional iterator");
 		mstd::advance(first, -off);
 		return first;
 	}
@@ -302,15 +305,6 @@ namespace mstd {
 
 	template<class Iter, class Pointer>
 	constexpr bool _Has_nothrow_operator_arrow<Iter, Pointer, false> = noexcept(_Fake_copy_init<Pointer>(mstd::declval<Iter&>().operator->()));
-
-
-	// move_iterator
-
-
-
-
-
-
 
 	// reverse_iterator 
 
@@ -325,35 +319,43 @@ namespace mstd {
 		using reference = _Iter_reference_t<BidIter>;
 		using difference_type = _Iter_difference_t<BidIter>;
 
-	protected:
-		BidIter base_iter_{};
-
 	public:
 		template<class>
 		friend class reverse_iterator;
 
 		constexpr reverse_iterator() = default;
-		explicit reverse_iterator(BidIter iter) noexcept(mstd::is_nothrow_move_constructible<BidIter>::value) : base_iter_(mstd::move(iter)) {}
+		constexpr explicit reverse_iterator(BidIter iter) // 传递参数异常 是否影响noexcept?
+			noexcept(mstd::is_nothrow_move_constructible<BidIter>::value)
+			: base_iter_(mstd::move(iter)) {}
 
 		template<class Other>
-		reverse_iterator(const reverse_iterator<Other>& right) noexcept(mstd::is_nothrow_constructible<BidIter, const Other&>::value) : base_iter_(right.base_iter_) {}
+		constexpr reverse_iterator(const reverse_iterator<Other>& right)
+			noexcept(mstd::is_nothrow_constructible<BidIter, const Other&>::value)
+			: base_iter_(right.base_iter_) {}
 
-		reverse_iterator& operator=(const reverse_iterator& right) noexcept(mstd::is_nothrow_assignable<BidIter, const BidIter&>::value) {
+		constexpr reverse_iterator& operator=(const reverse_iterator& right)
+			noexcept(mstd::is_nothrow_assignable<BidIter, const BidIter&>::value) {
 			base_iter_ = right.base_iter_;
 			return *this;
 		}
 
-		BidIter base() const
+		constexpr BidIter base() const
 			noexcept(mstd::is_nothrow_copy_constructible<BidIter>::value) {
 			return base_iter_;
 		}
 
-		reference operator*() const noexcept(mstd::is_nothrow_copy_constructible<BidIter>::value && noexcept(*--(mstd::declval<BidIter&>()))) {
+		constexpr reference operator*() const
+			noexcept(mstd::is_nothrow_copy_constructible<BidIter>::value
+				&& noexcept(*--(mstd::declval<BidIter&>()))) {
 			BidIter temp = base_iter_;
 			return *--temp;
 		}
 
-		pointer operator->() const noexcept(mstd::is_nothrow_copy_constructible<BidIter>::value && noexcept(--(mstd::declval<BidIter&>())) && _Has_nothrow_operator_arrow<BidIter&, pointer>) {
+		constexpr pointer operator->() const
+			noexcept(mstd::is_nothrow_copy_constructible<BidIter>::value
+				&& noexcept(--(mstd::declval<BidIter&>()))
+				&& _Has_nothrow_operator_arrow<BidIter&, pointer>) {
+
 			BidIter temp = base_iter_;
 			--temp;
 			if constexpr (mstd::is_pointer_v<BidIter>) {
@@ -364,251 +366,375 @@ namespace mstd {
 			}
 		}
 
-		reverse_iterator& operator++() noexcept(noexcept(--base_iter_)) {
+		constexpr reverse_iterator& operator++() noexcept(noexcept(--base_iter_)) {
 			--base_iter_;
 			return *this;
 		}
 
-		reverse_iterator operator++(int) noexcept(mstd::is_nothrow_copy_constructible<BidIter>::value && noexcept(--base_iter_)) {
+		constexpr reverse_iterator operator++(int)
+			noexcept(mstd::is_nothrow_copy_constructible<BidIter>::value
+				&& noexcept(--base_iter_)) {
 			reverse_iterator temp = *this;
 			--base_iter_;
 			return temp;
 		}
 
-		reverse_iterator& operator--() noexcept(noexcept(++base_iter_)) {
+		constexpr reverse_iterator& operator--() noexcept(noexcept(++base_iter_)) {
 			++base_iter_;
 			return *this;
 		}
 
-		reverse_iterator operator--(int) noexcept(noexcept(mstd::is_nothrow_copy_constructible<BidIter>::value && noexcept(++base_iter_))) {
+		constexpr reverse_iterator operator--(int)
+			noexcept(noexcept(mstd::is_nothrow_copy_constructible<BidIter>::value
+				&& noexcept(++base_iter_))) {
 			reverse_iterator temp = *this;
 			++base_iter_;
 			return temp;
 		}
 
-		reverse_iterator& operator+=(const difference_type off) noexcept(noexcept(base_iter_ -= off)) {
+		constexpr reverse_iterator& operator+=(const difference_type off)
+			noexcept(noexcept(base_iter_ -= off)) {
 			base_iter_ -= off;
 			return *this;
 		}
 
-		reverse_iterator& operator-=(const difference_type off) noexcept(base_iter_ += off) {
+		constexpr reverse_iterator& operator-=(const difference_type off)
+			noexcept(base_iter_ += off) {
 			base_iter_ += off;
 			return *this;
 		}
 
-		reverse_iterator operator-(const difference_type off) const noexcept(noexcept(reverse_iterator(base_iter_ + off))) {
+		constexpr reverse_iterator operator-(const difference_type off) const
+			noexcept(noexcept(reverse_iterator(base_iter_ + off))) {
 			return reverse_iterator(base_iter_ + off);
 		}
 
-		reverse_iterator operator+(const difference_type off) const noexcept(noexcept(reverse_iterator(base_iter_ + off))) {
+		constexpr reverse_iterator operator+(const difference_type off) const
+			noexcept(noexcept(reverse_iterator(base_iter_ + off))) {
 			return reverse_iterator(base_iter_ - off);
 		}
 
-		reference operator[](const difference_type off) const noexcept(noexcept(_Fake_copy_init<reference>(base_iter_[off]))) {
-			return base_iter_[-off - 1];
+		constexpr reference operator[](const difference_type off) const
+			noexcept(noexcept(_Fake_copy_init<reference>(base_iter_[off]))) {
+			return base_iter_[static_cast<difference_type>(-off - 1)];
 		}
 
+		using _Prevent_inheriting_unwrap = reverse_iterator;
 
+		template<class BidIter2,
+			mstd::enable_if_t<_Range_verifiable_v<BidIter, BidIter2>, int> = 0>
+		friend constexpr void _Verify_range(const reverse_iterator& first, const reverse_iterator& last) noexcept {
+			_Verify_range(last._Get_base_iter(), base_iter_);
+		}
 
+		template<class BidIter2 = BidIter,
+			mstd::enable_if_t<_Offset_verifiable_v<BidIter2>, int> = 0>
+		constexpr void _Verify_offset(const difference_type off) noexcept {
+			_MSTD_VERIFY(off != _Min_possible_v<difference_type>, "integer overflow");
+			base_iter_._Verify_offset(-off);
+		}
 
+		static constexpr bool _Unwrap_when_unverified = _Do_unwrap_when_unverified_v<BidIter>;
 
+		template<class BidIter2 = BidIter,
+			mstd::enable_if_t<_Unwrappable_v<BidIter2>, int> = 0>
+		constexpr reverse_iterator<_Unwrapped_t<BidIter>> _Unwrapped_iter() &&
+			noexcept(noexcept(static_cast<reverse_iterator<_Unwrapped_t<BidIter>>>
+				(mstd::move(base_iter_)._Unwrapped_iter()))) {
+			return static_cast<reverse_iterator<_Unwrapped_t<BidIter>>>(mstd::move
+			(base_iter_)._Unwrapped_iter());
+		}
 
-
-
-
-
-
-
-
-
-
-
+		template<class Source,
+			enable_if_t<_Wrapped_seekable_v<BidIter, const Source&>, int> = 0>
+		constexpr void _Wrapped_iter(const reverse_iterator<Source>& iter)
+			noexcept(noexcept(base_iter_._Wrapped_iter(iter.base_iter_))) {
+			base_iter_._Wrapped_iter(iter.base_iter_);
+		}
 
 		constexpr const BidIter& _Get_base_iter() const noexcept { return base_iter_; }
+
+	protected:
+		BidIter base_iter_{};
 	};
 
 	template<class BidIter>
-	reverse_iterator<BidIter>
+	constexpr reverse_iterator<BidIter>
 		operator+(const typename BidIter::difference_type off,
-			const reverse_iterator<BidIter>& right) {
+			const reverse_iterator<BidIter>& right) noexcept(noexcept
+				(reverse_iterator<BidIter>(right + off))) {
 		return reverse_iterator<BidIter>(right + off);
 	}
 
-	template<class BidIter>
-	typename reverse_iterator<BidIter>::difference_type
-		operator-(const reverse_iterator<BidIter>& left,
-			const reverse_iterator<BidIter>& right) {
+	template<class BidIter1, class BidIter2>
+	constexpr auto operator-(const reverse_iterator<BidIter1>& left,
+		const reverse_iterator<BidIter2>& right) noexcept(noexcept(left._Get_base_iter()
+			- right._Get_base_iter()))
+		->decltype(left._Get_base_iter() - right._Get_base_iter()) {
 		return left._Get_base_iter() - right._Get_base_iter();
 	}
 
 	template<class BidIter1, class BidIter2>
-	inline bool operator<(const reverse_iterator<BidIter1>& left,
-		const reverse_iterator<BidIter2>& right) {
+	constexpr bool operator<(const reverse_iterator<BidIter1>& left,
+		const reverse_iterator<BidIter2>& right) noexcept(noexcept(left._Get_base_iter()
+	> right._Get_base_iter())) {
 		return left._Get_base_iter() > right._Get_base_iter();
 	}
 
 	template<class BidIter1, class BidIter2>
-	inline bool operator>(const reverse_iterator<BidIter1>& left,
-		const reverse_iterator<BidIter2>& right) {
+	constexpr bool operator>(const reverse_iterator<BidIter1>& left,
+		const reverse_iterator<BidIter2>& right) noexcept(noexcept(left._Get_base_iter()
+			< right._Get_base_iter())) {
 		return left._Get_base_iter() < right._Get_base_iter();
 	}
 
 	template<class BidIter1, class BidIter2>
-	inline bool operator<=(const reverse_iterator<BidIter1>& left,
-		const reverse_iterator<BidIter2>& right) {
+	constexpr bool operator<=(const reverse_iterator<BidIter1>& left,
+		const reverse_iterator<BidIter2>& right) noexcept(noexcept(left._Get_base_iter()
+			>= right._Get_base_iter())) {
 		return left._Get_base_iter() >= right._Get_base_iter();
 	}
 
 	template<class BidIter1, class BidIter2>
-	inline bool operator>=(const reverse_iterator<BidIter1>& left,
-		const reverse_iterator<BidIter2>& right) {
+	constexpr bool operator>=(const reverse_iterator<BidIter1>& left,
+		const reverse_iterator<BidIter2>& right) noexcept(noexcept(left._Get_base_iter()
+			<= right._Get_base_iter())) {
 		return left._Get_base_iter() <= right._Get_base_iter();
 	}
 
 	template<class BidIter1, class BidIter2>
-	inline bool operator==(const reverse_iterator<BidIter1>& left,
-		const reverse_iterator<BidIter2>& right) {
+	constexpr bool operator==(const reverse_iterator<BidIter1>& left,
+		const reverse_iterator<BidIter2>& right) noexcept(noexcept(_Fake_copy_init<bool>
+			(left._Get_base_iter() == right._Get_base_iter()))) {
 		return left._Get_base_iter() == right._Get_base_iter();
 	}
 
 	template<class BidIter1, class BidIter2>
-	inline bool operator!=(const reverse_iterator<BidIter1>& left,
-		const reverse_iterator<BidIter2>& right) {
+	constexpr bool operator!=(const reverse_iterator<BidIter1>& left,
+		const reverse_iterator<BidIter2>& right) noexcept(noexcept(left._Get_base_iter
+		() != right._Get_base_iter())) {
 		return left._Get_base_iter() != right._Get_base_iter();
 	}
+
+	template<class BidIter>
+	constexpr reverse_iterator<BidIter> make_reverse_iterator(BidIter iter)
+		noexcept(mstd::is_nothrow_move_constructible<BidIter>::value) {
+		return reverse_iterator<BidIter>(mstd::move(iter));
+	}
+
+	struct _Default_sentinel {};  // ??
+
+	// move_iterator
+
+	template<class Iter>
+	class move_iterator {
+	public:
+		using iterator_type = Iter;
+		using iterator_category = _Iter_category_t<Iter>;
+
+		using value_type = _Iter_value_t<Iter>;
+		using pointer = Iter; // ??
+		using difference_type = _Iter_difference_t<Iter>;
+		using reference = mstd::conditional_t<mstd::is_reference_v<_Iter_ref_t<Iter>>,
+			mstd::remove_reference_t<_Iter_reference_t<Iter>>&&, _Iter_reference_t<Iter>>;
+
+		constexpr move_iterator() = default;
+		constexpr explicit move_iterator(Iter iter)
+			noexcept(mstd::is_nothrow_move_constructible<Iter>::value)
+			: base_iter_(mstd::move(iter)) {}
+
+		template<class Other>
+		constexpr move_iterator(const move_iterator<Other>& other) noexcept
+			(mstd::is_nothrow_copy_constructible<Iter, const Other&>::value) : base_iter_(other.base()) {}
+
+		template<class Other>
+		constexpr move_iterator& operator=(const move_iterator<Other>& other)
+			noexcept(mstd::is_nothrow_assignable<Iter, const Other&>::value) {
+			base_iter_ = other.base();
+			return *this;
+		}
+
+		constexpr iterator_type base() const
+			noexcept(mstd::is_nothrow_copy_constructible<Iter>::value) {
+			return base_iter_;
+		}
+
+		constexpr reference operator*() const noexcept(noexcept(static_cast<reference>(*base_iter_))) {
+			return static_cast<reference>(*base_iter_);
+		}
+
+		constexpr pointer operator->() const noexcept(mstd::is_nothrow_copy_constructible<Iter>::value) {
+			return base_iter_;
+		}
+
+		constexpr move_iterator& operator++() const noexcept(noexcept(++base_iter_)) {
+			++base_iter_;
+			return *this;
+		}
+
+		constexpr move_iterator operator++(int) const
+			noexcept(mstd::is_nothrow_copy_constructible<Iter>::value && noexcept(++base_iter_)) {
+			iterator_type temp = *this;
+			++base_iter_;
+			return temp;
+		}
+
+		constexpr move_iterator& operator--() const noexcept(noexcept(--base_iter_)) {
+			--base_iter_;
+			return *this;
+		}
+
+		constexpr move_iterator operator--(int) const
+			noexcept(mstd::is_nothrow_copy_constructible<Iter>::value && noexcept(--base_iter_)) {
+			iterator_category temp = *this;
+			--base_iter_;
+			return temp;
+		}
+
+		template<class Iter2 = Iter>
+		constexpr auto operator==(_Default_sentinel sentinel) const noexcept
+			->decltype(mstd::declval<const Iter2&>() == sentinel) {
+			return base_iter_ == sentinel;
+		}
+
+		template<class Iter2 = Iter>
+		constexpr auto operator==(_Default_sentinel sentinel) const noexcept
+			->decltype(mstd::declval<const Iter2&>() != sentinel) {
+			return base_iter_ != sentinel;
+		}
+
+		constexpr move_iterator operator+(const difference_type off) const
+			noexcept(noexcept(move_iterator(base_iter_ + off))) {
+			return move_iterator(base_iter_ + off);
+		}
+
+		constexpr move_iterator& operator+=(const difference_type off)
+			noexcept(noexcept(base_iter_ += off)) {
+			base_iter_ += off;
+			return *this;
+		}
+
+		constexpr move_iterator operator-(const difference_type off) const
+			noexcept(noexcept(move_iterator(base_iter_ - off))) {
+			return move_iterator(base_iter_ - off);
+		}
+
+		constexpr move_iterator& operator-=(const difference_type off)
+			noexcept(noexcept(base_iter_ -= off)) {
+			base_iter_ -= off;
+			return *this;
+		}
+
+		constexpr reference operator[](const difference_type off) const
+			noexcept(mstd::move(base_iter_[off])) {
+			return mstd::move(base_iter_[off]);
+		}
+
+		template<class Iter2, enable_if_t<_Range_verifiable_v<Iter, Iter2>, int> = 0>
+		friend constexpr void _Verify_range(const move_iterator<Iter>& first, const move_iterator<Iter2>& last) noexcept {
+			_Verify_range(first._Get_base_iter(), last._Get_base_iter());
+		}
+
+		using _Prevent_inheriting_unwrap = move_iterator;
+
+		template<class Iter2 = iterator_type, enable_if_t<_Offset_verifiable_v<Iter2>, int> = 0>
+		constexpr void _Verify_offset(const difference_type off) const noexcept {
+			base_iter_._Verify_offset(off);
+		}
+
+
+		template<class Iter2 = iterator_type, enable_if_t<_Unwrappable_v<const Iter2&>, int> = 0>
+		constexpr move_iterator<_Unwrapped_t<const Iter2&>> _Unwrapped_iter() const&
+			noexcept(static_cast<move_iterator<_Unwrapped_t<const Iter2&>>>(base_iter_._Unwrapped_iter())) {
+			return static_cast<move_iterator<_Unwrapped_t<const Iter2&>>>(base_iter_._Unwrapped_iter());
+		}
+
+		template<class Iter2 = iterator_type, enable_if_t<_Unwrappable_v<Iter2>, int> = 0>
+		constexpr move_iterator<_Unwrapped_t<Iter2>> _Unwrapped_iter() &&
+			noexcept(static_cast<move_iterator<_Unwrapped_t<Iter2>>>(mstd::move(base_iter_)._Unwrapped_iter())) {
+			return static_cast<move_iterator<_Unwrapped_t<Iter2>>>(mstd::move(base_iter_)._Unwrapped_iter());
+		}
+
+		static constexpr bool _Unwrap_when_unverified = _Do_unwrap_when_unverified_v<iterator_type>;
+
+		template<class Src, enable_if_t<_Wrapped_seekable_v<iterator_type, const Src&>, int> = 0>
+		constexpr void _Wrapped_iter(const move_iterator<Src>& iter)
+			noexcept(base_iter_._Wrapped_iter(iter._Get_base_iter())) {
+			base_iter_._Wrapped_iter(iter._Get_base_iter());
+		}
+
+		template<class Src, enable_if_t<_Wrapped_seekable_v<iterator_type, Src>, int> = 0>
+		constexpr void _Wrapped_iter(move_iterator<Src>&& iter)
+			noexcept(base_iter_._Wrapped_iter(mstd::move(iter)._Get_base_iter())) {
+			base_iter_._Wrapped_iter(mstd::move(iter)._Get_base_iter());
+		}
+
+		constexpr const iterator_type& _Get_base_iter() const& noexcept {
+			return base_iter_;
+		}
+
+		constexpr iterator_type _Get_base_iter() && noexcept {
+			return mstd::move(base_iter_);
+		}
+
+	protected:
+		Iter base_iter_{};
+	};
+
+	template<class Iter1, class Iter2>
+	constexpr bool operator==(const move_iterator<Iter1>& left, const move_iterator<Iter2>& right)
+		noexcept(noexcept(_Fake_copy_init<bool>(left._Get_base_iter() == right._Get_base_iter()))) {
+		return left._Get_base_iter() == right._Get_base_iter();
+	}
+
+	template<class Iter1, class Iter2>
+	constexpr bool operator!=(const move_iterator<Iter1>& left, const move_iterator<Iter2>& right)
+		noexcept(noexcept(left == right)) {
+		return !(left == right);
+	}
+
+	template<class Iter1, class Iter2>
+	constexpr bool operator<(const move_iterator<Iter1>& left, const move_iterator<Iter2>& right)
+		noexcept(noexcept(_Fake_copy_init<bool>(left._Get_base_iter() < right._Get_base_iter()))) {
+		return left._Get_base_iter() < right._Get_base_iter();
+	}
+
+	template<class Iter1, class Iter2>
+	constexpr bool operator>=(const move_iterator<Iter1>& left, const move_iterator<Iter2>& right)
+		noexcept(noexcept(left < right)) {
+		return !(left < right);
+	}
+
+	template<class Iter1, class Iter2>
+	constexpr bool operator>(const move_iterator<Iter1>& left, const move_iterator<Iter2>& right)
+		noexcept(noexcept(left < right)) {
+		return right < left;
+	}
+
+	template<class Iter1, class Iter2>
+	constexpr bool operator<=(const move_iterator<Iter1>& left, const move_iterator<Iter2>& right)
+		noexcept(noexcept(right < left)) {
+		return !(right < left);
+	}
+
+	template<class Iter1, class Iter2>
+	constexpr auto operator-(const move_iterator<Iter1>& left, const move_iterator<Iter2>& right)
+		noexcept(noexcept(left._Get_base_iter() - right._Get_base_iter()))
+		->decltype(left._Get_base_iter() - right._Get_base_iter()) {
+		return left._Get_base_iter() - right._Get_base_iter();
+	}
+
+	template<class Iter>
+	constexpr move_iterator<Iter> operator+(const typename move_iterator<Iter>::difference_type off, const move_iterator<Iter>& iter)
+		noexcept(noexcept(move_iterator<Iter>(iter.base() + off))) {
+		return move_iterator<Iter>(iter.base() + off);
+	}
+
+	template<class Iter>
+	constexpr move_iterator<Iter> make_move_iterator(Iter iter)
+		noexcept(mstd::is_nothrow_move_constructible<Iter>::value) {
+		return move_iterator<Iter>(mstd::move(iter));
+	}
+
 }
 
-
-namespace gnu_iterator {
-
-	struct output_iterator_tag {};
-	struct input_iterator_tag {};
-	struct forward_iterator_tag : public input_iterator_tag {};
-	struct bidirectional_iterator_tag : public forward_iterator_tag {};
-	struct random_access_iterator_tag : public bidirectional_iterator_tag {};
-
-	template<typename Category, typename Tp, typename Distance = ptrdiff_t,
-		typename Pointer = Tp*, typename Reference = Tp&>
-	struct iterator
-	{
-		using iterator_category = Category;
-		using value_type = Tp;
-		using difference_type = Distance;
-		using pointer = Pointer;
-		using reference = Reference;
-	};
-
-	template<typename Category, typename Tp, typename Distance = ptrdiff_t,
-		typename Pointer = const Tp*, typename Reference = const Tp&>
-	struct const_iterator
-	{
-		using iterator_category = Category;
-		using value_type = Tp;
-		using difference_type = Distance;
-		using pointer = Pointer;
-		using reference = Reference;
-	};
-
-	template<typename Iter>
-	struct iterator_traits
-	{
-		using iterator_category = typename Iter::iterator_category;
-		using value_type = typename Iter::value_type;
-		using difference_type = typename Iter::difference_type;
-		using pointer = typename Iter::pointer;
-		using reference = typename Iter::reference;
-	};
-
-
-	template<typename Tp>
-	struct iterator_traits<Tp*>
-	{
-		using iterator_category = random_access_iterator_tag;
-		using value_type = Tp;
-		using difference_type = ptrdiff_t;
-		using Pointer = Tp*;
-		using reference = Tp&;
-	};
-
-	template<typename Tp>
-	struct iterator_traits<const Tp*>
-	{
-		using iterator_category = random_access_iterator_tag;
-		using value_type = Tp;
-		using difference_type = ptrdiff_t;
-		using Pointer = Tp*;
-		using reference = Tp&;
-	};
-
-	template<typename Iter>
-	inline typename iterator_traits<Iter>::value_type*
-		iterator_value_type(Iter it) {
-		using value_type = typename iterator_traits<Iter>::value_type;
-		return static_cast<value_type*>(0);
-	}
-
-	template<typename Iter>
-	inline typename iterator_traits<Iter>::iterator_category
-		iterator_category(Iter it)
-	{
-		using category = typename iterator_traits<Iter>::iterator_category;
-		return category();
-	}
-
-	template<typename IptIter>
-	inline typename iterator_traits<IptIter>::difference_type
-		__distance(IptIter first, IptIter last, input_iterator_tag)
-	{
-		typename iterator_traits<IptIter>::difference_type n = 0;
-		for (; first < last; ++first) {
-			n += 1;
-		}
-		return n;
-	}
-
-	template<typename RdmIter>
-	inline typename iterator_traits<RdmIter>::difference_type
-		__distance(RdmIter first, RdmIter last, random_access_iterator_tag)
-	{
-		return last - first;
-	}
-
-	template<typename IptIter>
-	inline typename iterator_traits<IptIter>::difference_type
-		iterator_distance(IptIter first, IptIter last)
-	{
-		using category = typename iterator_traits<IptIter>::iterator_category;
-		return __distance(first, last, category());
-	}
-
-
-	template<typename IptIter, typename Distance = ptrdiff_t>
-	inline void __advance(IptIter& first, Distance n, input_iterator_tag)
-	{
-		for (; n > 0; --n, ++first);
-	}
-
-	template<typename IptIter, typename Distance = ptrdiff_t>
-	inline void __advance(IptIter& first, Distance n, bidirectional_iterator_tag)
-	{
-		if (n > 0) {
-			for (; n > 0; --n, ++first);
-		}
-		else {
-			for (; n < 0; ++n, ++first);
-		}
-	}
-
-	template<typename IptIter, typename Distance = ptrdiff_t>
-	inline void __advance(IptIter& first, Distance n, random_access_iterator_tag)
-	{
-		first += n;
-	}
-
-	template<typename IptIter, typename Distance = ptrdiff_t>
-	inline void iterator_advance(IptIter& first, Distance n)
-	{
-		using category = typename iterator_traits<IptIter>::iterator_category;
-		__advance(first, n, category());
-	}
-}

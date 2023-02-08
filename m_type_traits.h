@@ -6,7 +6,7 @@
 
 /*
 * 编译器内部的intrinsic，
-* C++11中，需要编译器辅助实现判断：
+* C++11中，需要编译器实现判断：
 * is_class;
 * is_union;
 * is_enum;
@@ -563,8 +563,14 @@ namespace mstd {
 	template<class From, class To>
 	using is_convertible = std::is_convertible<From, To>;
 
+	template<class From, class To>
+	constexpr bool is_convertible_v = is_convertible<From, To>::value;
+
 	template<class Tp>
 	using is_enum = std::is_enum<Tp>;
+
+	template<class Tp>
+	constexpr bool is_enum_v = is_enum<Tp>::value;
 
 	template<class Tp>
 	struct is_compound : bool_constant<!is_fundamental_v<Tp>> {};
@@ -574,6 +580,9 @@ namespace mstd {
 
 	template<class Tp>
 	using is_member_function_pointer = std::is_member_function_pointer<Tp>;
+
+	template<class Tp>
+	constexpr bool is_member_function_pointer_v = is_member_function_pointer<Tp>::value;
 
 	template<class Tp>
 	constexpr bool is_const_v = false;
@@ -737,7 +746,7 @@ namespace mstd {
 	template<class Tp>
 	using is_nothrow_destructible = std::is_nothrow_destructible<Tp>;
 
-	template<class Tp, bool = is_integral_v<Tp>>
+	template<class Tp, bool = mstd::is_intagral_v<Tp>>
 	struct _is_signed {
 		using _Rp = remove_cv_t<Tp>;
 		static constexpr bool _signed = static_cast<_Rp>(-1) < static_cast<_Rp>(0);
@@ -1170,7 +1179,7 @@ namespace mstd {
 	template<class Tp>
 	Tp _Returns_exactly() noexcept; // not defined，返回Tp类型的值，不同于declval()的对于非引用类型返回Tp&&
 
-	template<class From, class To, bool = is_convertible_v<From, To>, bool = is_void_v<To>>
+	template<class From, class To, bool = mstd::is_convertible_v<From, To>, bool = is_void_v<To>>
 	constexpr bool _is_nothrow_convertible_v = noexcept(_Fake_copy_init<To>(declval<From>()));
 
 	template<class From, class To, bool IsVoid>

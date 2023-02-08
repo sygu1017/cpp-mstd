@@ -370,14 +370,10 @@ ostream& print(ostream& os, const Tp& obj) {
 
 #include "m_type_traits.h"
 
-struct A {
-
-};
 
 
 struct Test {
 
-	A a;
 
 	Test() = default;
 
@@ -398,8 +394,33 @@ struct Test {
 void test_mstd_verify() {
 	int a{ 1 };
 	int b{ 2 };
-	_MSTD_VERIFY(a == b, "value not equal");
+	_MSTD_VERIFY(a == b, "value is not equal");
 }
+
+
+struct A {
+	A() = default;
+	A(const A& a) noexcept(false) {
+
+	}
+	Test a_{};
+};
+
+
+template<class Tp>
+struct test_type {
+	using type = Tp;
+};
+
+template<class Tp>
+struct test_type<Tp&&> {
+	using type = Tp;
+};
+
+template<class Tp>
+struct test_type<Tp&> {
+	using type = Tp;
+};
 
 int main() {
 	//test_vector();
@@ -449,11 +470,11 @@ int main() {
 	//cout << std::is_same_v<const int* const, 
 	//	typename mstd::remove_reference<const int* const&>::type> << endl;
 
-	auto f1 = &Test::fun1;
+	//auto f1 = &Test::fun1;
 	//Test t{};
-	auto f2 = &Test::fun2;
+	//auto f2 = &Test::fun2;
 	//auto f3 = &Test::operator=;
-	auto f4 = &Test::operator int;
+	//auto f4 = &Test::operator int;
 
 	//cout << std::is_member_function_pointer_v<decltype(f1)> << endl;
 	//cout << std::is_function_v<decltype(f1)> << endl;
@@ -477,7 +498,7 @@ int main() {
 
 	//cout << std::is_nothrow_default_constructible<Test>::value << endl;
 
-	cout << std::is_same_v<int&, std::add_rvalue_reference_t<int&>> << endl;
+	//cout << std::is_same_v<int&, std::add_rvalue_reference_t<int&>> << endl;
 
 	//std::vector<int> v1{ 1,2,3,4 };
 	//std::vector<int> v2{ 5,6,7 };
@@ -485,7 +506,11 @@ int main() {
 
 	//test_mstd_verify();
 
+	int a{ 1 };
 
+	const int b = std::move(a);
+	cout << b << endl;
+	cout << a << endl;
 
 
 

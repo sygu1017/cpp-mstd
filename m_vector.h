@@ -1,16 +1,17 @@
 #pragma once
 
-#include "m_alloc.h"			// malloc_allocator;
-#include "m_constructor.h"		// construct(); destroy();
-#include "m_uninitialized.h"	// uninitialized_copy(); uninitialized_fill_n(); uninitialized_move();
-#include "m_utility.h"			// is_iterator_v<>;
-#include "m_algorithm.h"		// copy();
-#include "m_iterator.h"			// reverse_iterator;
-
 #include <initializer_list>		// std::initialized_list;
 #include <exception>			// std::out_of_range;
 #include <cstring>				// std::memmove();
 #include <type_traits>			// std::enable_if_t<>;
+
+#include "m_alloc.h"			// malloc_allocator;
+#include "m_constructor.h"		// construct(); destroy();
+#include "m_utility.h"			// is_iterator_v<>;
+#include "m_algorithm.h"		// copy();
+#include "m_iterator.h"			// reverse_iterator;
+
+
 
 namespace mstd {
 
