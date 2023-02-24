@@ -65,7 +65,7 @@ namespace mstd {
 	}
 
 	template<class Tp>
-	inline constexpr size_t _New_alignof = std::max(alignof(Tp), __MSTDCPP_DEFAULT_NEW_ALIGNMENT__);
+	constexpr size_t _New_alignof = std::max(alignof(Tp), __MSTDCPP_DEFAULT_NEW_ALIGNMENT__);
 
 	template<class Tp, class... Args>
 	inline Tp* _Globle_new(Args&&...args) {
@@ -711,7 +711,7 @@ namespace mstd {
 		using Ptr = typename Alloc::value_type*;
 		auto ufirst = _Get_unwrapped_iter(first);
 		const auto ulast = _Get_unwrapped_iter(last);
-		constexpr bool can_memmove = conjunction_v < bool_constant<_Iter_move_cat<decltype(ufirst), Ptr >::_Bitcopy_constructible>, _Uses_default_construct < Alloc, Ptr, decltype(mstd::move(*ufirst));
+		constexpr bool can_memmove = conjunction_v<bool_constant<_Iter_move_cat<decltype(ufirst), Ptr >::_Bitcopy_constructible>, _Uses_default_construct<Alloc, Ptr, decltype(mstd::move(*ufirst))>>;
 		if constexpr (can_memmove) {
 			_Copy_with_memmove(ufirst, ulast, _Unfancy(dest));
 			return dest + (ulast - ufirst);
