@@ -207,6 +207,7 @@ namespace mstd {
 		if constexpr (is_pointer_v<Iter>)
 			return iter + 0;
 		else if constexpr (_Unwrappable_for_offset_v<Iter> && is_integral_v<Diff>) {
+			// ½øÐÐ·¶Î§ºË²é
 			using Iter_diff = _Iter_difference_t<_Remove_cvref_t<Iter>>;
 			using Commom_diff = common_type_t<Iter_diff, Diff>;
 

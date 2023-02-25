@@ -109,7 +109,7 @@ namespace mstd {
 		using _Reftype = mstd::conditional_t<mstd::is_void_v<element_type>, char, element_type>&;
 
 		static pointer pointer_to(_Reftype val) noexcept(noexcept(Tp::pointer_to(val))) {
-			return Tp::pointer_to(val);
+			return Tp::pointer_to(val);  // 返回fancy pointer Tp中定义的pointer_to()函数的返回值，有哪些pointer中定义了pointer_to()函数??
 		}
 	};
 
@@ -192,7 +192,7 @@ namespace mstd {
 		return val;
 	}
 
-	template<class Iter>
+	template<class Iter>  // move_iterator<>偏特化，
 	constexpr auto _To_address(const move_iterator<Iter>& val) noexcept {
 		return _To_address(val.base());
 	}
@@ -225,7 +225,7 @@ namespace mstd {
 
 	template<class Source, class Dest, class SourceRef, class DestRef>
 	struct _Trivial_cat {
-		using USource = _Unwarp_enum_t<Source>;
+		using USource = _Unwarp_enum_t<Source>;  // 为什么要Unwrap_enum??
 		using UDest = _Unwarp_enum_t<Dest>;
 
 		static constexpr bool _Same_size_and_compatible = sizeof(Source) == sizeof(Dest)
@@ -242,10 +242,10 @@ namespace mstd {
 	template<class Source, class Dest, class SourceRef, class DestRef>
 	struct _Trivial_cat<Source*, Dest*, SourceRef, DestRef> {
 
-		static constexpr bool _Bitcopy_constructible = _Same_size_and_compatible
+		static constexpr bool _Bitcopy_constructible = _Is_pointer_address_convertible<Source, Dest>
 			&& is_trivially_constructible_v<Dest*, SourceRef>;
 
-		static constexpr bool _Bitcopy_assignable = _Same_size_and_compatible
+		static constexpr bool _Bitcopy_assignable = _Is_pointer_address_convertible<Source, Dest>
 			&& is_trivially_assignable<DestRef, SourceRef>;
 	};
 
@@ -547,6 +547,177 @@ namespace mstd {
 		}
 		return dest;
 	}
+
+	// 实现 ITERATOR_DEBUG 下迭代器核查器
+
+	struct _Fake_allocator {};
+
+	struct _Container_base_fake {
+		void _Orphan_all() noexcept {}
+		void _Swap_proxy_and_iterators(_Container_base_fake&) noexcept {}
+		void _Alloc_proxy(const _Fake_allocator&) noexcept {}
+		void _Reload_proxy(const _Fake_allocator&, const _Fake_allocator&) noexcept {}
+	};
+
+	struct _Iterator_base_fake {
+		void _Adopt(const void*) noexcept {}
+		const _Iterator_base_fake* _Getcont() const noexcept {
+			return nullptr;
+		}
+
+		static constexpr bool _Unwrap_when_unverified = true;
+	};
+
+	struct _Container_base_real;
+	struct _Iterator_base_real;
+
+	struct _Container_proxy {
+		_Container_proxy() noexcept = default;
+		_Container_proxy(_Container_base_real* cont) noexcept : cont_(cont) {}
+
+		const _Container_base_real* cont_ = nullptr;
+		mutable _Iterator_base_real* firstiter_ = nullptr;
+	};
+
+	struct _Container_base_real {
+	public:
+		_Container_proxy* proxy_{};
+
+		_Container_base_real() noexcept = default;
+		_Container_base_real(const _Container_base_real&) = delete;
+		_Container_base_real& operator=(const _Container_base_real&) = delete;
+
+		// 重新分配内存时，迭代器会失效，将所有旧迭代器设置失效
+		void _Orphan_all() noexcept {
+			if (!proxy_) { return; }
+			for (auto pnext = mstd::exchange(proxy_->firstiter_, nullptr); pnext; pnext = pnext->nextiter_) {
+				pnext->proxy_ = nullptr;
+			}
+		}
+
+		// 交换容器基类时，需要交换容器代理，以及容器代理中保存的容器指针
+		void _Swap_proxy_and_iterators(_Container_base_real& right) noexcept {
+			_Container_proxy* temp = proxy_;
+			proxy_ = right.proxy_;
+			right.proxy_ = temp;
+
+			if (proxy_) {
+				proxy_->cont_ = this;
+			}
+
+			if (right.proxy_) {
+				right.proxy_->cont_ = &right;
+			}
+		}
+
+		template <class Alloc>
+		void _Alloc_proxy(Alloc&& alloc) {
+			_Container_proxy* const new_proxy = _Unfancy(alloc.allocate(1));
+			_Construct_in_place(*new_proxy, this);
+			proxy_ = new_proxy;
+			new_proxy->proxy_ = this;
+		}
+
+		template <class Alloc>
+		void _Reload_proxy(Alloc&& old_alloc, Alloc&& new_alloc) {
+			_Container_proxy* const new_proxy = _Unfancy(new_alloc.allocate(1));
+			_Construct_in_place(*new_proxy, this);
+			new_proxy->cont_ = this;
+			_Delete_plain_internal(old_alloc, mstd::exchange(proxy_, new_proxy));
+		}
+
+	};
+
+	struct _Iterator_base_real {
+	public:
+		_Container_proxy* proxy_{};
+		_Iterator_base_real* nextiter_{};
+
+		_Iterator_base_real() noexcept = default;
+
+		_Iterator_base_real(const _Iterator_base_real& right) noexcept {
+			*this = right;
+		}
+
+		_Iterator_base_real& operator=(const _Iterator_base_real& right) noexcept {
+			_Assign(right);
+			return *this;
+		}
+
+		~_Iterator_base_real() noexcept {
+			_Orphan_me();
+		}
+
+		const _Container_base_real* _Getcont() const noexcept {
+			return proxy_ ? proxy_->cont_ : nullptr;
+		}
+
+		// 迭代器基类初始化调用
+		void _Adopt(const _Container_base_real* parent) noexcept {
+			if (!parent) { _Orphan_me(); return; }
+			_Container_proxy* parent_proxy = parent->proxy_;
+			if (proxy_ != parent_proxy) {
+				if (!proxy_) _Orphan_me();
+				nextiter_ = parent_proxy->firstiter_;
+				parent_proxy->firstiter_ = this;
+				proxy_ = parent_proxy;
+			}
+		}
+
+	private:
+
+		void _Assign(const _Iterator_base_real& right) {
+			if (proxy_ == right.proxy_) return;
+			if (right.proxy_) {
+				_Adopt(right.proxy_->cont_);
+			}
+			else {
+				_Orphan_me();
+			}
+		}
+
+		// 将自身从迭代器链表中移除，将proxy_置为空
+		void _Orphan_me() {
+			if (!proxy_) return;
+			_Iterator_base_real** pnext = &proxy_->firstiter_;
+			while (*pnext && *pnext != this) {
+				pnext = &(*pnext)->nextiter_;
+			}
+			_MSTD_VERIFY(*pnext, "iterator list corrupted");
+			*pnext = nextiter_;
+			proxy_ = nullptr;
+		}
+
+	};
+
+	// 容器基类代理器生成器，防止分配内存失败出现内存泄漏
+
+
+
+
+
+	// 标签类，用于指示重载函数调用决议
+
+
+
+
+
+
+
+	// 聚合类，用于节省存放对象内存空间（节省为了区分空类对象而设定的一定内存空间）
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
