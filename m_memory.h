@@ -4,7 +4,6 @@
 
 #include "m_type_traits.h"	// is_trivially_destructible<>;
 #include "m_utility.h"		// pointer_traits;
-#include "m_iterator.h"		// _Iter_value_t<>;
 
 
 namespace mstd {
@@ -13,15 +12,12 @@ namespace mstd {
 
 	// 包装 operator new、operator delete 实现内存分配函数
 	struct _Default_allocate_traits {
-
 		static void* _Allocate(const size_t bytes) {
 			return ::operator new(bytes);
 		}
-
 		static void* _Allocate_aligned(const size_t bytes, const size_t align) {
 			return ::operator new(bytes, std::align_val_t{ align });
 		}
-
 	};
 
 	constexpr size_t __MSTDCPP_DEFAULT_NEW_ALIGNMENT__ = 8u;
@@ -230,6 +226,7 @@ namespace mstd {
 	template<class Tp>
 	struct _Is_default_allocator<allocator<Tp>, void_t<typename allocator<Tp>::_From_primary>> : mstd::is_same<allocator<Tp>, typename allocator<Tp>::_From_primary>::type {};
 
+	// 判断用户定义分配器是否定义了相关函数
 	template<class Void, class... Args>
 	struct _Has_no_alloc_construct : true_type {};
 
@@ -269,6 +266,7 @@ namespace mstd {
 	template<class Alloc>
 	struct allocator_traits;
 
+	// 分配器萃取器
 	template<class Alloc>
 	struct _Normal_allocator_traits { // can be used for all allocators
 
@@ -351,6 +349,7 @@ namespace mstd {
 
 	};
 
+	// 默认分配器的萃取器
 	template<class Alloc>
 	struct _Default_allocator_traits {	// traits for allocator<Tp>;
 
@@ -407,6 +406,7 @@ namespace mstd {
 	template<class Alloc>
 	struct allocator_traits : conditional_t<_Is_default_allocator<Alloc>::value, _Default_allocator_traits<Alloc>, _Normal_allocator_traits<Alloc>> {};
 
+	// 标准默认分配器
 	template<class Tp>
 	class allocator {
 	public:
@@ -462,6 +462,72 @@ namespace mstd {
 		size_type max_size() const noexcept { return static_cast<size_type>(-1) / sizeof(Tp); }
 
 	};
+
+	template<class Tp, class Other>
+	bool operator==(const allocator<Tp>&, const allocator<Other>&) noexcept { return true; }
+
+	template<class Tp, class Other>
+	bool operator!=(const allocator<Tp>&, const allocator<Other>&) noexcept { return false; }
+
+	template <class Alloc, class Value_type>
+	using _Rebind_alloc_t = typename allocator_traits<Alloc>::template rebind_alloc<Value_type>;
+
+	template <class Alloc>
+	constexpr bool _Is_simple_alloc_v = is_same_v<typename allocator_traits<Alloc>::size_type, size_t> &&
+		is_same_v<typename allocator_traits<Alloc>::difference_type, ptrdiff_t> &&
+		is_same_v<typename allocator_traits<Alloc>::pointer, typename Alloc::value_type*> &&
+		is_same_v<typename allocator_traits<Alloc>::const_pointer, const typename Alloc::value_type*>;
+
+	// _Is_simple_alloc_v<Alloc> = true 条件下，容器成员类型为_Simple_types
+	template <class Value_type>
+	struct _Simple_types {
+		using value_type = Value_type;
+		using size_type = size_t;
+		using difference_type = ptrdiff_t;
+		using pointer = value_type*;
+		using const_pointer = const value_type*;
+	};
+
+	// 判断分配器拷贝赋值元素的兼容性
+	template <class Alloc>
+	constexpr bool _Choose_pocca_v = allocator_traits<Alloc>::propagate_on_container_copy_assignment::value
+		&& !allocator_traits<Alloc>::is_always_equal::value;
+
+	enum class _Pocma_values {
+		_Equal_allocators, // 可以移动元素，甚至是交换，allocator<Tp>
+		_Propagate_allocators, // 通常分配器可以增值，可以移动元素
+		_No_propagate_allocators, // 分配器不兼容，将移动转换为拷贝
+	};
+
+	// 判断分配器移动赋值元素的兼容性
+	template <class Alloc>
+	constexpr _Pocma_values
+		_Choose_pocma_v = allocator_traits<Alloc>::is_always_equal::value
+		? _Pocma_values::_Equal_allocators
+		: (allocator_traits<Alloc>::propagate_on_container_move_assignment::value
+			? _Pocma_values::_Propagate_allocators
+			: _Pocma_values::_No_propagate_allocators);
+
+	template <class Alloc>
+	void _Pocca(Alloc& left, const Alloc& right) noexcept {
+		if constexpr (allocator_traits<Alloc>::propagate_on_container_copy_assignment::value) {
+			left = right;
+		}
+	}
+
+	template <class Alloc>
+	void _Pocma(Alloc& left, Alloc& right) noexcept {
+		if constexpr (allocator_traits<Alloc>::propagate_on_container_move_assignment::value) {
+			left = mstd::move(right);
+		}
+	}
+
+	template <class Alloc>
+	void _Pocs(Alloc& left, Alloc& right) noexcept {
+		if constexpr (allocator_traits<Alloc>::propagate_on_container_swap::value) {
+			swap(left, right);
+		}
+	}
 
 	template<class FwdIter>
 	inline void _Destroy_range(FwdIter first, FwdIter last) noexcept;
@@ -526,44 +592,43 @@ namespace mstd {
 		_Deallocate_plain(alloc, ptr);
 	}
 
-
 	template<class Container>
 	struct _Tidy_guard {
-		Container* _Target;
+		Container* cont_;
 
 		void _Release() const noexcept {
-			_Target = nullptr;
+			cont_ = nullptr;
 		}
 		~_Tidy_guard() {
-			if (_Target) _Target->_Tidy();  // Container需要定义_Tidy()函数
+			if (cont_) cont_->_Tidy();  // Container需要定义_Tidy()函数
 		}
 	};
 
 	template<class Container>
 	struct _Tidy_deallocate_guard {
-		Container* _Target;
+		Container* cont_;
 
 		void _Release() const noexcept {
-			_Target = nullptr;
+			cont_ = nullptr;
 		}
 		// Container需要定义_Tidy_deallocate()函数
 		~_Tidy_deallocate_guard() {
-			if (_Target) _Target->_Tidy_deallocate();
+			if (cont_) cont_->_Tidy_deallocate();
 		}
 	};
 
 	template<class Iter>
-	struct _Initialized_backout {
+	struct _Uninitialized_backout {
 		Iter first_;
 		Iter last_;
 
-		explicit _Initialized_backout(Iter iter) : first_(iter), last_(iter) {}
-		_Initialized_backout(Iter first, Iter last) : first_(first), last_(last) {}
+		explicit _Uninitialized_backout(Iter iter) : first_(iter), last_(iter) {}
+		_Uninitialized_backout(Iter first, Iter last) : first_(first), last_(last) {}
 
-		_Initialized_backout(const _Initialized_backout&) = delete;
-		_Initialized_backout& operator=(const _Initialized_backout&) = delete;
+		_Uninitialized_backout(const _Uninitialized_backout&) = delete;
+		_Uninitialized_backout& operator=(const _Uninitialized_backout&) = delete;
 
-		~_Initialized_backout() {
+		~_Uninitialized_backout() {
 			_Destroy_range(first_, last_);
 		}
 
@@ -575,7 +640,7 @@ namespace mstd {
 
 		Iter _Release() {
 			first_ = last_;
-			return last_
+			return last_;
 		}
 	};
 
@@ -602,13 +667,13 @@ namespace mstd {
 
 		template<class... Args>
 		void _Emplace_back(Args&&... args) {
-			allocator_traits<Alloc>::construct(alloc_, _Unfancy(last), mstd::forward<Args>(args)...);
+			allocator_traits<Alloc>::construct(alloc_, _Unfancy(last_), mstd::forward<Args>(args)...);
 			++last_;
 		}
 
 		constexpr pointer _Release() {
 			first_ = last_;
-			return last_
+			return last_;
 		}
 	};
 
@@ -663,7 +728,7 @@ namespace mstd {
 
 	template <class Iter, class Sentinel, class Alloc>
 	inline _Alloc_ptr_t<Alloc> _Uninitialized_copy(Iter first, Sentinel last, _Alloc_ptr_t<Alloc> dest, Alloc& alloc) {
-		using Ptr = typename _Alloc::value_type*;
+		using Ptr = typename Alloc::value_type*;
 		auto ufirst = _Get_unwrapped_iter(mstd::move(first));
 		auto ulast = _Get_unwrapped_iter(mstd::move(last));
 
@@ -675,12 +740,12 @@ namespace mstd {
 			}
 			else {
 				const auto count = static_cast<size_t>(ulast - ufirst);
-				_Copy_n_with_memmove(_To_address(ufirst), count, _Unfancy(_Dest));
+				_Copy_n_with_memmove(_To_address(ufirst), count, _Unfancy(dest));
 				dest += count;
 			}
 			return dest;
 		}
-		_Uninitialized_backout_alloc<_Alloc> backout{ dest, alloc };
+		_Uninitialized_backout_alloc<Alloc> backout{ dest, alloc };
 		for (; ufirst != ulast; ++ufirst) {
 			backout._Emplace_back(*ufirst);
 		}
@@ -743,6 +808,268 @@ namespace mstd {
 		return backout._Release();
 	}
 
+	// 实现 ITERATOR_DEBUG 下迭代器核查器
+	struct _Fake_allocator {};
+
+	struct _Container_base_fake {
+		void _Orphan_all() noexcept {}
+		void _Swap_proxy_and_iterators(_Container_base_fake&) noexcept {}
+		void _Alloc_proxy(const _Fake_allocator&) noexcept {}
+		void _Reload_proxy(const _Fake_allocator&, const _Fake_allocator&) noexcept {}
+	};
+
+	struct _Iterator_base_fake {
+		void _Adopt(const void*) noexcept {}
+		const _Iterator_base_fake* _Getcont() const noexcept {
+			return nullptr;
+		}
+
+		static constexpr bool _Unwrap_when_unverified = true;
+	};
+
+	struct _Container_base_real;
+
+	struct _Container_proxy {
+		_Container_proxy() noexcept = default;
+		_Container_proxy(_Container_base_real* cont) noexcept : cont_(cont) {}
+
+		const _Container_base_real* cont_ = nullptr;
+		mutable _Iterator_base_real* firstiter_ = nullptr;
+	};
+
+	struct _Container_base_real {
+	public:
+		_Container_proxy* proxy_ = nullptr;
+
+		_Container_base_real() noexcept = default;
+		_Container_base_real(const _Container_base_real&) = delete;
+		_Container_base_real& operator=(const _Container_base_real&) = delete;
+
+		// 重新分配内存时，迭代器会失效，将所有旧迭代器设置失效
+		void _Orphan_all() noexcept;
+
+		// 交换容器基类时，需要交换容器代理，以及容器代理中保存的容器指针
+		void _Swap_proxy_and_iterators(_Container_base_real& right) noexcept;
+
+		template <class Alloc>
+		void _Alloc_proxy(Alloc&& alloc) {
+			_Container_proxy* const new_proxy = _Unfancy(alloc.allocate(1));
+			_Construct_in_place(*new_proxy, this);
+			proxy_ = new_proxy;
+			new_proxy->proxy_ = this;
+		}
+
+		template <class Alloc>
+		void _Reload_proxy(Alloc&& old_alloc, Alloc&& new_alloc) {
+			_Container_proxy* const new_proxy = _Unfancy(new_alloc.allocate(1));
+			_Construct_in_place(*new_proxy, this);
+			new_proxy->cont_ = this;
+			_Delete_plain_internal(old_alloc, mstd::exchange(proxy_, new_proxy));
+		}
+
+	};
+
+	struct _Iterator_base_real {
+	public:
+		mutable _Container_proxy* proxy_ = nullptr;
+		mutable _Iterator_base_real* nextiter_ = nullptr;
+
+		_Iterator_base_real() noexcept = default;
+
+		_Iterator_base_real(const _Iterator_base_real& right) noexcept {
+			*this = right;
+		}
+
+		_Iterator_base_real& operator=(const _Iterator_base_real& right) noexcept {
+			_Assign(right);
+			return *this;
+		}
+
+		~_Iterator_base_real() noexcept {
+			_Orphan_me();
+		}
+
+		const _Container_base_real* _Getcont() const noexcept {
+			return proxy_ ? proxy_->cont_ : nullptr;
+		}
+
+		// 迭代器基类初始化调用
+		void _Adopt(const _Container_base_real* parent) noexcept {
+			if (!parent) { _Orphan_me(); return; }
+			_Container_proxy* parent_proxy = parent->proxy_;
+			if (proxy_ != parent_proxy) {
+				if (!proxy_) _Orphan_me();
+				nextiter_ = parent_proxy->firstiter_;
+				parent_proxy->firstiter_ = this;
+				proxy_ = parent_proxy;
+			}
+		}
+
+	private:
+
+		void _Assign(const _Iterator_base_real& right) {
+			if (proxy_ == right.proxy_) return;
+			if (right.proxy_) {
+				_Adopt(right.proxy_->cont_);
+			}
+			else {
+				_Orphan_me();
+			}
+		}
+
+		// 将自身从迭代器链表中移除，将proxy_置为空
+		void _Orphan_me() {
+			if (!proxy_) return;
+			_Iterator_base_real** pnext = &proxy_->firstiter_;
+			while (*pnext && *pnext != this) {
+				pnext = &(*pnext)->nextiter_;
+			}
+			_MSTD_VERIFY(*pnext, "iterator list corrupted");
+			*pnext = nextiter_;
+			proxy_ = nullptr;
+		}
+
+	};
+
+	void _Container_base_real::_Orphan_all() noexcept {
+		if (!proxy_) { return; }
+		auto pnext = mstd::exchange(proxy_->firstiter_, nullptr);
+		for (; pnext; pnext = pnext->nextiter_) {
+			pnext->proxy_ = nullptr;
+		}
+	}
+
+	void _Container_base_real::_Swap_proxy_and_iterators(_Container_base_real& right) noexcept {
+		_Container_proxy* temp = proxy_;
+		proxy_ = right.proxy_;
+		right.proxy_ = temp;
+
+		if (proxy_) {
+			proxy_->cont_ = this;
+		}
+
+		if (right.proxy_) {
+			right.proxy_->cont_ = &right;
+		}
+	}
+
+#if _ITERATOR_DEBUG != 0
+
+	using _Container_base = _Container_base_real;
+	using _Iterator_base = _Iterator_base_real;
+
+#define _CHANGE_TO_PROXY_ALLOC(_Alloc_t, alloc) static_cast<_Rebind_alloc_t<_Alloc_t, _Container_proxy>>(alloc)
+
+#else
+	using _Container_base = _Container_base_fake;
+	using _Iterator_base = _Iterator_base_fake;
+
+	constexpr _Fake_allocator _fake_alloc{};
+#define _CHANGE_TO_PROXY_ALLOC(_Alloc_t, _fake_alloc) _fake_alloc
+
+#endif
+
+
+	// 容器基类代理器生成器，防止分配内存失败出现内存泄漏
+	struct _Basic_container_proxy_ptr {
+		_Container_proxy* ptr_{};
+		constexpr void _Release() noexcept { ptr_ = nullptr; }
+	protected:
+		_Basic_container_proxy_ptr() = default;
+		_Basic_container_proxy_ptr(const _Basic_container_proxy_ptr&) = delete;
+		_Basic_container_proxy_ptr(_Basic_container_proxy_ptr&&) = delete;
+	};
+
+	// 标签类，指示容器基类代理器按默认方式构造
+	struct _Leave_proxy_unbound {
+		explicit _Leave_proxy_unbound() = default;
+	};
+
+	template<class Alloc>
+	struct _Container_proxy_ptr : _Basic_container_proxy_ptr {
+		Alloc& alloc_;
+		_Container_proxy_ptr(Alloc& alloc, _Leave_proxy_unbound) : alloc_(alloc) {
+			ptr_ = _Unfancy(alloc.allocate(1));
+			_Construct_in_place(*ptr_);
+		}
+
+		_Container_proxy_ptr(Alloc& alloc, _Container_base_real& cont) : alloc_(alloc) {
+			ptr_ = _Unfancy(alloc.allocate(1));
+			_Construct_in_place(*ptr_, std::addressof(cont));
+			cont->proxy_ = ptr_;
+		}
+
+		void _Bind(Alloc& old_alloc, _Container_base_real* cont) noexcept {
+			ptr_->cont_ = cont;
+			_Delete_plain_internal(old_alloc, mstd::exchange(cont->proxy_, mstd::exchange(ptr_, nullptr)));
+		}
+
+		~_Container_proxy_ptr() {
+			if (ptr_) _Delete_plain_internal(alloc_, ptr_);
+		}
+
+	};
+
+
+	// 标签类，用于指示重载函数调用决议
+	struct _Zero_then_variadic_args_t {
+		explicit _Zero_then_variadic_args_t() = default;
+	};
+
+	struct _One_then_variadic_args_t {
+		explicit _One_then_variadic_args_t() = default;
+	};
+
+	// 聚合类，用于节省存放对象内存空间（节省为了区分空类对象而设定的内存空间）
+	template<class Tp1, class Tp2, bool = is_empty<Tp1>::value && !is_final<Tp1>::value>
+	struct _Compressed_pair final : private Tp1 {
+	public:
+		Tp2 second_;
+		using base = Tp1;
+
+		template<class... Other2>
+		constexpr explicit _Compressed_pair(_Zero_then_variadic_args_t, Other2&&...vals2)
+			noexcept(mstd::conjunction_v<is_nothrow_default_constructible<Tp1>, is_nothrow_constructible<Tp2, Other2...>>)
+			: Tp1(), second_(mstd::forward<Other2>(vals2)...) {}
+
+		template<class Other1, class... Other2>
+		constexpr explicit _Compressed_pair(_One_then_variadic_args_t, Other1&& val1, Other2&&... vals2)
+			noexcept(mstd::conjunction_v<is_nothrow_constructible<Tp1, Other1>, is_nothrow_constructible<Tp2, Other2...>>)
+			: Tp1(mstd::forward<Other1>(val1)), second_(mstd::forward<Other2>(vals2)...) {}
+
+		constexpr Tp1& _Get_first() noexcept {
+			return *this;
+		}
+
+		constexpr const Tp1& _Get_first() const noexcept {
+			return *this;
+		}
+	};
+
+	template<class Tp1, class Tp2>
+	struct _Compressed_pair<Tp1, Tp2, false> final {
+	public:
+		Tp1 first_;
+		Tp2 second_;
+
+		template<class... Other2>
+		constexpr explicit _Compressed_pair(_Zero_then_variadic_args_t, Other2&&...vals2)
+			noexcept(mstd::conjunction_v<is_nothrow_default_constructible<Tp1>, is_nothrow_constructible<Tp2, Other2...>>)
+			: first_(), second_(mstd::forward<Other2>(vals2)...) {}
+
+		template<class Other1, class... Other2>
+		constexpr explicit _Compressed_pair(_One_then_variadic_args_t, Other1&& val1, Other2&&... vals2)
+			noexcept(mstd::conjunction_v<is_nothrow_constructible<Tp1, Other1>, is_nothrow_constructible<Tp2, Other2...>>)
+			: first_(mstd::forward<Other1>(val1)), second_(mstd::forward<Other2>(vals2)...) {}
+
+		constexpr Tp1& _Get_first() noexcept {
+			return first_;
+		}
+
+		constexpr const Tp1& _Get_first() const noexcept {
+			return first_;
+		}
+	};
 
 
 

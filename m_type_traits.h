@@ -280,7 +280,7 @@ namespace mstd {
 	struct conjunction : true_type {};
 
 	template<class First, class... Rest>
-	struct conjunction<First, Rest...> : _conjunction<First::value, First, Rest...> {};
+	struct conjunction<First, Rest...> : _conjunction<First::value, First, Rest...>::type {};
 
 	template<class... Types>
 	constexpr bool conjunction_v = conjunction<Types...>::value;
@@ -308,12 +308,12 @@ namespace mstd {
 	constexpr bool _is_any_of_v = disjunction_v<is_same<Tp, Types>...>;
 
 	template<class Tp>
-	constexpr bool is_intagral_v = _is_any_of_v<remove_cv_t<Tp>, bool, char, signed char,
+	constexpr bool is_integral_v = _is_any_of_v<remove_cv_t<Tp>, bool, char, signed char,
 		unsigned char, wchar_t, char16_t, char32_t, short, unsigned short, int, unsigned int,
 		long, unsigned long, long long, unsigned long long>;
 
 	template<class Tp>
-	struct is_intagral : bool_constant<is_intagral_v<Tp>> {};
+	struct is_intagral : bool_constant<is_integral_v<Tp>> {};
 
 	template<class Tp>
 	constexpr bool is_floating_point_v = _is_any_of_v<remove_cv_t<Tp>, float, double, long double>;
@@ -322,7 +322,7 @@ namespace mstd {
 	struct is_floating_point : bool_constant<is_floating_point_v<Tp>> {};
 
 	template<class Tp>
-	constexpr bool is_arithmetic_v = is_intagral_v<Tp> || is_floating_point_v<Tp>;
+	constexpr bool is_arithmetic_v = is_integral_v<Tp> || is_floating_point_v<Tp>;
 
 	template<class Tp>
 	struct is_arithmetic : bool_constant<is_arithmetic_v<Tp>> {};
@@ -468,6 +468,9 @@ namespace mstd {
 	struct remove_pointer<Tp* const volatile> {
 		using type = Tp;
 	};
+
+	template<class Tp>
+	using remove_pointer_t = typename remove_pointer<Tp>::type;
 
 	template<class Tp, class = void>
 	struct _add_pointer {
@@ -700,6 +703,9 @@ namespace mstd {
 	template<class Tp, class... Args>
 	using is_trivially_constructible = std::is_trivially_constructible<Tp, Args...>;
 
+	template<class Tp, class... Args>
+	constexpr bool is_trivially_constructible_v = is_trivially_constructible<Tp, Args...>::value;
+
 	template<class Tp>
 	using is_trivially_copy_constructible = is_trivially_constructible<Tp,
 		add_lvalue_reference_t<const Tp>>;
@@ -746,7 +752,7 @@ namespace mstd {
 	template<class Tp>
 	using is_nothrow_destructible = std::is_nothrow_destructible<Tp>;
 
-	template<class Tp, bool = mstd::is_intagral_v<Tp>>
+	template<class Tp, bool = mstd::is_integral_v<Tp>>
 	struct _is_signed {
 		using _Rp = remove_cv_t<Tp>;
 		static constexpr bool _signed = static_cast<_Rp>(-1) < static_cast<_Rp>(0);
@@ -946,6 +952,9 @@ namespace mstd {
 	using underlying_type = std::underlying_type<Tp>;
 
 	template<class Tp>
+	using underlying_type_t = typename underlying_type<Tp>::type;
+
+	template<class Tp>
 	constexpr size_t rank_v = 0;
 
 	template<class Tp>
@@ -971,6 +980,9 @@ namespace mstd {
 
 	template<class Base, class Derived>
 	using is_base_of = std::is_base_of<Base, Derived>;
+
+	template<class Base, class Derived>
+	constexpr bool is_base_of_v = is_base_of<Base, Derived>::value;
 
 	template<class Tp>
 	struct decay {
@@ -1110,10 +1122,10 @@ namespace mstd {
 	using _Remove_cvref_t = remove_cv_t<remove_reference_t<Tp>>;
 
 	template<class Tp, template<class...> class Template>
-	constexpr bool _is_specialization_v = false;
+	constexpr bool _Is_specialization_v = false;
 
 	template<template<class...> class Template, class... Types>
-	constexpr bool _is_specialization_v<Template<Types...>, Template> = true;
+	constexpr bool _Is_specialization_v<Template<Types...>, Template> = true;
 
 	template<class Callable, class Tp, class _Removed_cvref = _Remove_cvref_t<Callable>,
 		bool _is_pmf = is_member_function_pointer_v<_Removed_cvref>,
@@ -1218,7 +1230,7 @@ namespace mstd {
 	};
 
 	template<class Tp>
-	using _Weak_type = conditional_t < is_function_v<remove_pointer_t<Tp>>, std::_Function_args<remove_pointer_t<Tp>>, conditional_t<is_member_function_pointer_v<Tp>,
+	using _Weak_type = conditional_t<is_function_v<remove_pointer_t<Tp>>, std::_Function_args<remove_pointer_t<Tp>>, conditional_t<is_member_function_pointer_v<Tp>,
 		std::_Is_memfunptr<remove_cv_t<Tp>>, _Weak_binary_rags<Tp>>>;
 
 	template<class Tp>

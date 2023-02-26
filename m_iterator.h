@@ -75,16 +75,16 @@ namespace mstd {
 	using _Common_difference_t = mstd::common_type_t<_Iter_difference_t<Iters>...>;
 
 	template<class Iter>
-	constexpr bool _Is_ranges_ipt_iter_v = mstd::is_convertible<_Iter_category_t<Iter>, input_iterator_tag>;
+	constexpr bool _Is_ranges_ipt_iter_v = mstd::is_convertible<_Iter_category_t<Iter>, input_iterator_tag>::value;
 
 	template<class Iter>
-	constexpr bool _Is_ranges_fwd_iter_v = mstd::is_convertible<_Iter_category_t<Iter>, forward_iterator_tag>;
+	constexpr bool _Is_ranges_fwd_iter_v = mstd::is_convertible<_Iter_category_t<Iter>, forward_iterator_tag>::value;
 
 	template<class Iter>
-	constexpr bool _Is_ranges_bid_iter_v = mstd::is_convertible<_Iter_category_t<Iter>, bidirection_iterator_tag>;
+	constexpr bool _Is_ranges_bid_iter_v = mstd::is_convertible<_Iter_category_t<Iter>, bidirection_iterator_tag>::value;
 
 	template<class Iter>
-	constexpr bool _Is_ranges_rdm_iter_v = mstd::is_convertible<_Iter_category_t<Iter>, random_access_iterator_tag>;
+	constexpr bool _Is_ranges_rdm_iter_v = mstd::is_convertible<_Iter_category_t<Iter>, mstd::random_access_iterator_tag>::value;
 
 	// ∂®“Â _MSTD_VERIFY()
 
@@ -536,7 +536,7 @@ namespace mstd {
 		using value_type = _Iter_value_t<Iter>;
 		using pointer = Iter; // ??
 		using difference_type = _Iter_difference_t<Iter>;
-		using reference = mstd::conditional_t<mstd::is_reference_v<_Iter_ref_t<Iter>>,
+		using reference = mstd::conditional_t<mstd::is_reference_v<_Iter_reference_t<Iter>>,
 			mstd::remove_reference_t<_Iter_reference_t<Iter>>&&, _Iter_reference_t<Iter>>;
 
 		constexpr move_iterator() = default;

@@ -1,8 +1,5 @@
 #pragma once
 
-#include <cassert>			// assert();
-#include <utility>			// std::addressof();
-
 #include "m_type_traits.h"
 
 namespace mstd {
@@ -221,16 +218,16 @@ namespace mstd {
 	};
 
 	template<class Tp>
-	using _Unwarp_enum_t = typename _Unwrap_enum<Tp>::type;  // ??
+	using _Unwrap_enum_t = typename _Unwrap_enum<Tp>::type;  // ??
 
 	template<class Source, class Dest, class SourceRef, class DestRef>
 	struct _Trivial_cat {
-		using USource = _Unwarp_enum_t<Source>;  // 为什么要Unwrap_enum??
-		using UDest = _Unwarp_enum_t<Dest>;
+		using USource = _Unwrap_enum_t<Source>;  // 为什么要Unwrap_enum??
+		using UDest = _Unwrap_enum_t<Dest>;
 
 		static constexpr bool _Same_size_and_compatible = sizeof(Source) == sizeof(Dest)
 			&& is_same_v<bool, USource> >= is_same_v<bool, UDest>
-			&& (is_same_v<USource, UDest> || (is_intagral_v<USource> && is_intagral_v<UDest>) || (is_floating_point_v<USource> && is_floating_point_v<UDest>));
+			&& (is_same_v<USource, UDest> || (is_integral_v<USource> && is_integral_v<UDest>) || (is_floating_point_v<USource> && is_floating_point_v<UDest>));
 
 		static constexpr bool _Bitcopy_constructible = _Same_size_and_compatible
 			&& is_trivially_constructible_v<Dest, SourceRef>;
@@ -272,6 +269,20 @@ namespace mstd {
 	template<class SourceIter, class DestIter>
 	struct _Iter_move_cat<move_iterator<SourceIter>, DestIter, false> : _Iter_move_cat<SourceIter, DestIter> {};
 
+	struct _Distance_Unknow {
+		constexpr _Distance_Unknow operator-() const noexcept { return {}; }
+	};
+
+	template<class Iter1, class Iter2>
+	constexpr auto _Get_distance(const Iter2& first, const Iter2& last) {
+		if constexpr (_Is_ranges_rdm_iter_v<Iter2>) {
+			return static_cast<_Iter_difference_t<Iter1>>(last - first);
+		}
+		else {
+			return _Distance_Unknow{};
+		}
+	}
+
 	template<class InIter, class OutIter>
 	OutIter _Copy_with_memmove(InIter first, InIter last, OutIter dest) {
 		auto firstPtr = _To_address(first);
@@ -280,7 +291,7 @@ namespace mstd {
 		const char* const first_ch = const_cast<const char*>(reinterpret_cast<const volatile char*>(firstPtr));
 		const char* const last_ch = const_cast<const char*>(reinterpret_cast<const volatile char*>(lastPtr));
 		char* const dest_ch = const_cast<char*>(reinterpret_cast<const volatile char*>(destPtr));
-		const auto conut = static_cast<size_t>(last_ch - first_ch);
+		const auto count = static_cast<size_t>(last_ch - first_ch);
 		mstd::memmove(dest_ch, first_ch, count);
 		if constexpr (is_pointer_v<OutIter>) {
 			return reinterpret_cast<OutIter>(destPtr + count);
@@ -315,26 +326,14 @@ namespace mstd {
 		return dest;
 	}
 
-	struct _Distance_Unknow {
-		constexpr _Distance_Unknow operator-() const noexcept { return {}; }
-	};
 
-	template<class Iter1, class Iter2>
-	constexpr auto _Idl_distance(Iter2 first, Iter2 last) {
-		if constexpr (_Is_ranges_rdm_iter_v<Iter2>) {
-			return static_cast<_Iter_difference_t<Iter1>(last - first);
-		}
-		else {
-			return _Distance_Unknow{};
-		}
-	}
 
 	template<class InIter, class OutIter>
 	inline OutIter copy(InIter first, InIter last, OutIter dest) {
 		_Mstd_adl_verify_range(first, last);
 		const auto ufirst = _Get_unwrapped_iter(first);
 		const auto ulast = _Get_unwrapped_iter(last);
-		const auto udest = _Get_unwrapped_iter_n(dest, _Idl_distance<InIter>(last, last));
+		const auto udest = _Get_unwrapped_iter_n(dest, _Get_distance<InIter>(last, last));
 		_Seek_wrapped_iter(dest, _Copy_unchecked(ufirst, ulast, udest));
 		return dest;
 	}
@@ -348,7 +347,7 @@ namespace mstd {
 		if (count > 0) {
 			auto ufirst = _Get_unwrapped_iter_n(first, count);
 			auto udest = _Get_unwrapped_iter_n(dest, count);
-			if constexpr (_Iter_copy_cat<decltype(ufirst), decltype(ulast)>::_Bitcopy_assignable) {
+			if constexpr (_Iter_copy_cat<decltype(ufirst), decltype(udest)>::_Bitcopy_assignable) {
 				_Seek_wrapped_iter(dest, _Copy_n_with_memmove(ufirst, static_cast<size_t>(count), udest));
 				return dest;
 			}
@@ -404,7 +403,7 @@ namespace mstd {
 		_Mstd_adl_verify_range(first, last);
 		const auto ufirst = _Get_unwrapped_iter(first);
 		const auto ulast = _Get_unwrapped_iter(last);
-		const auto udest = _Get_unwrapped_iter_n(dest, -_Idl_distance<BidIter1>(ufirst, ulast));
+		const auto udest = _Get_unwrapped_iter_n(dest, -_Get_distance<BidIter1>(ufirst, ulast));
 		_Seek_wrapped_iter(dest, _Copy_backward_unchecked(ufirst, ulast, udest));
 		return dest;
 	}
@@ -425,7 +424,7 @@ namespace mstd {
 		_Mstd_adl_verify_range(first, last);
 		const auto ufirst = _Get_unwrapped_iter(first);
 		const auto ulast = _Get_unwrapped_iter(last);
-		const auto udest = _Get_unwrapped_iter_n(dest, _Idl_distance<InIter>(ufirst, ulast));
+		const auto udest = _Get_unwrapped_iter_n(dest, _Get_distance<InIter>(ufirst, ulast));
 		_Seek_wrapped_iter(dest, _Move_unchecked(ufirst, ulast, udest));
 		return dest;
 	}
@@ -446,7 +445,7 @@ namespace mstd {
 		_Mstd_adl_verify_range(first, last);
 		const auto ufirst = _Get_unwrapped_iter(first);
 		const auto ulast = _Get_unwrapped_iter(last);
-		const auto udest = _Get_unwrapped_iter_n(dest, -_Idl_distance<InIter>(ufirst, ulast));
+		const auto udest = _Get_unwrapped_iter_n(dest, -_Get_distance<InIter>(ufirst, ulast));
 		_Seek_wrapped_iter(dest, _Move_backward_unchecked(ufirst, ulast, udest));
 		return dest;
 	}
@@ -547,168 +546,6 @@ namespace mstd {
 		}
 		return dest;
 	}
-
-	// 实现 ITERATOR_DEBUG 下迭代器核查器
-
-	struct _Fake_allocator {};
-
-	struct _Container_base_fake {
-		void _Orphan_all() noexcept {}
-		void _Swap_proxy_and_iterators(_Container_base_fake&) noexcept {}
-		void _Alloc_proxy(const _Fake_allocator&) noexcept {}
-		void _Reload_proxy(const _Fake_allocator&, const _Fake_allocator&) noexcept {}
-	};
-
-	struct _Iterator_base_fake {
-		void _Adopt(const void*) noexcept {}
-		const _Iterator_base_fake* _Getcont() const noexcept {
-			return nullptr;
-		}
-
-		static constexpr bool _Unwrap_when_unverified = true;
-	};
-
-	struct _Container_base_real;
-	struct _Iterator_base_real;
-
-	struct _Container_proxy {
-		_Container_proxy() noexcept = default;
-		_Container_proxy(_Container_base_real* cont) noexcept : cont_(cont) {}
-
-		const _Container_base_real* cont_ = nullptr;
-		mutable _Iterator_base_real* firstiter_ = nullptr;
-	};
-
-	struct _Container_base_real {
-	public:
-		_Container_proxy* proxy_{};
-
-		_Container_base_real() noexcept = default;
-		_Container_base_real(const _Container_base_real&) = delete;
-		_Container_base_real& operator=(const _Container_base_real&) = delete;
-
-		// 重新分配内存时，迭代器会失效，将所有旧迭代器设置失效
-		void _Orphan_all() noexcept {
-			if (!proxy_) { return; }
-			for (auto pnext = mstd::exchange(proxy_->firstiter_, nullptr); pnext; pnext = pnext->nextiter_) {
-				pnext->proxy_ = nullptr;
-			}
-		}
-
-		// 交换容器基类时，需要交换容器代理，以及容器代理中保存的容器指针
-		void _Swap_proxy_and_iterators(_Container_base_real& right) noexcept {
-			_Container_proxy* temp = proxy_;
-			proxy_ = right.proxy_;
-			right.proxy_ = temp;
-
-			if (proxy_) {
-				proxy_->cont_ = this;
-			}
-
-			if (right.proxy_) {
-				right.proxy_->cont_ = &right;
-			}
-		}
-
-		template <class Alloc>
-		void _Alloc_proxy(Alloc&& alloc) {
-			_Container_proxy* const new_proxy = _Unfancy(alloc.allocate(1));
-			_Construct_in_place(*new_proxy, this);
-			proxy_ = new_proxy;
-			new_proxy->proxy_ = this;
-		}
-
-		template <class Alloc>
-		void _Reload_proxy(Alloc&& old_alloc, Alloc&& new_alloc) {
-			_Container_proxy* const new_proxy = _Unfancy(new_alloc.allocate(1));
-			_Construct_in_place(*new_proxy, this);
-			new_proxy->cont_ = this;
-			_Delete_plain_internal(old_alloc, mstd::exchange(proxy_, new_proxy));
-		}
-
-	};
-
-	struct _Iterator_base_real {
-	public:
-		_Container_proxy* proxy_{};
-		_Iterator_base_real* nextiter_{};
-
-		_Iterator_base_real() noexcept = default;
-
-		_Iterator_base_real(const _Iterator_base_real& right) noexcept {
-			*this = right;
-		}
-
-		_Iterator_base_real& operator=(const _Iterator_base_real& right) noexcept {
-			_Assign(right);
-			return *this;
-		}
-
-		~_Iterator_base_real() noexcept {
-			_Orphan_me();
-		}
-
-		const _Container_base_real* _Getcont() const noexcept {
-			return proxy_ ? proxy_->cont_ : nullptr;
-		}
-
-		// 迭代器基类初始化调用
-		void _Adopt(const _Container_base_real* parent) noexcept {
-			if (!parent) { _Orphan_me(); return; }
-			_Container_proxy* parent_proxy = parent->proxy_;
-			if (proxy_ != parent_proxy) {
-				if (!proxy_) _Orphan_me();
-				nextiter_ = parent_proxy->firstiter_;
-				parent_proxy->firstiter_ = this;
-				proxy_ = parent_proxy;
-			}
-		}
-
-	private:
-
-		void _Assign(const _Iterator_base_real& right) {
-			if (proxy_ == right.proxy_) return;
-			if (right.proxy_) {
-				_Adopt(right.proxy_->cont_);
-			}
-			else {
-				_Orphan_me();
-			}
-		}
-
-		// 将自身从迭代器链表中移除，将proxy_置为空
-		void _Orphan_me() {
-			if (!proxy_) return;
-			_Iterator_base_real** pnext = &proxy_->firstiter_;
-			while (*pnext && *pnext != this) {
-				pnext = &(*pnext)->nextiter_;
-			}
-			_MSTD_VERIFY(*pnext, "iterator list corrupted");
-			*pnext = nextiter_;
-			proxy_ = nullptr;
-		}
-
-	};
-
-	// 容器基类代理器生成器，防止分配内存失败出现内存泄漏
-
-
-
-
-
-	// 标签类，用于指示重载函数调用决议
-
-
-
-
-
-
-
-	// 聚合类，用于节省存放对象内存空间（节省为了区分空类对象而设定的一定内存空间）
-
-
-
-
 
 
 

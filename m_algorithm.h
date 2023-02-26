@@ -426,16 +426,16 @@ namespace mstd {
 		return dest + (last - first);
 	}
 
-	template<class IptIter, class Size, class OptIter>
-	inline OptIter copy_n(IptIter first, Size n, OptIter result)
-	{
-		while (n > 0) {
-			*result = *first;
-			++result; ++first;
-			--n;
-		}
-		return result;
-	}
+	//template<class IptIter, class Size, class OptIter>
+	//inline OptIter copy_n(IptIter first, Size n, OptIter result)
+	//{
+	//	while (n > 0) {
+	//		*result = *first;
+	//		++result; ++first;
+	//		--n;
+	//	}
+	//	return result;
+	//}
 
 	template <class IptIter, class OptIter, class UnaryPred>
 	inline OptIter copy_if(IptIter first, IptIter last, OptIter result, UnaryPred pred)
@@ -450,31 +450,31 @@ namespace mstd {
 		return result;
 	}
 
-	template<class BidIter1, class BidIter2>
-	inline BidIter2 copy_backward(BidIter1 first, BidIter1 last, BidIter2 result)
-	{
-		while (last != first)
-			*(--result) = *(--last);
-		return result;
-	}
+	//template<class BidIter1, class BidIter2>
+	//inline BidIter2 copy_backward(BidIter1 first, BidIter1 last, BidIter2 result)
+	//{
+	//	while (last != first)
+	//		*(--result) = *(--last);
+	//	return result;
+	//}
 
-	template<class IptIter, class OptIter>
-	inline OptIter move(IptIter first, IptIter last, OptIter result)
-	{
-		while (first != last) {
-			*result = std::move(*first);
-			++result; ++first;
-		}
-		return result;
-	}
+	//template<class IptIter, class OptIter>
+	//inline OptIter move(IptIter first, IptIter last, OptIter result)
+	//{
+	//	while (first != last) {
+	//		*result = std::move(*first);
+	//		++result; ++first;
+	//	}
+	//	return result;
+	//}
 
-	template<class BidIter1, class BidIter2>
-	inline BidIter2 move_backward(BidIter1 first, BidIter1 last, BidIter2 result)
-	{
-		while (last != first)
-			*(--result) = std::move(*(--last));
-		return result;
-	}
+	//template<class BidIter1, class BidIter2>
+	//inline BidIter2 move_backward(BidIter1 first, BidIter1 last, BidIter2 result)
+	//{
+	//	while (last != first)
+	//		*(--result) = std::move(*(--last));
+	//	return result;
+	//}
 
 	template<class FwdIter1, class FwdIter2>
 	inline FwdIter2 swap_ranges(FwdIter1 first1, FwdIter1 last1, FwdIter2 first2)
@@ -555,13 +555,13 @@ namespace mstd {
 		return result;
 	}
 
-	template<typename IptIter, typename Tp>
+	/*template<typename IptIter, typename Tp>
 	inline void fill(IptIter first, IptIter last, const Tp& value)
 	{
 		for (; first != last; ++first) {
 			*first = value;
 		}
-	}
+	}*/
 
 	template<typename OptIter, typename Tp>
 	inline OptIter fill_n(OptIter first, size_t n, const Tp& value)

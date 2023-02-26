@@ -27,7 +27,11 @@
 #include <condition_variable>
 
 
-using namespace std;
+using std::cout;
+using std::string;
+using std::endl;
+using std::ostream;
+using std::exception;
 
 template<typename Tp>
 void print_container(const Tp& cont) {
@@ -427,6 +431,8 @@ struct test_type<Tp&> {
 	using type = Tp;
 };
 
+
+
 int main() {
 	//test_vector();
 	//mstd::vector<MString>::iterator it;
@@ -511,12 +517,11 @@ int main() {
 
 	//test_mstd_verify();
 
-	int a{ 1 };
+	//int a{ 1 };
 
-	const int b = std::move(a);
-	cout << b << endl;
-	cout << a << endl;
-
+	//const int b = std::move(a);
+	//cout << b << endl;
+	//cout << a << endl;
 
 
 }
